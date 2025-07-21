@@ -1,0 +1,32 @@
+{
+  "short_name": "Math Game",
+  "name": "Math Game App",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#4a148c",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "related_applications": [],
+  "prefer_related_applications": false
+}
