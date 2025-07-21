@@ -1,82 +1,151 @@
-import React, {
-    useState,
-    useEffect,
-    useCallback,
-    useRef,
-    leaderboardContent,
-    useMemo,
-} from "react";
-import ProblemCard from "./components/ProblemCard";
-import AnswerButtons from "./components/AnswerButtons";
-import TimerCircle from "./components/TimerCircle";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Leaderboard from "./components/Leaderboard";
-import DefaultAvatar from "./assets/default-avatar.png";
 import GameLobby from "./components/GameLobby";
+import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
+import DefaultAvatar from "./assets/default-avatar.png";
 
-const ROUND_TIME = 15;
-const API_BASE = "https://momis.studio/api";
+const API_BASE = "https://momis.studio/api"; // یا آدرس بک‌اند شما
 
 function App() {
-    const [problem, setProblem] = useState(null);
-    const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
-    const [loading, setLoading] = useState(false);
-    const [view, setView] = useState("auth");
-    const [finalScore, setFinalScore] = useState(null);
-    const [score, setScore] = useState(0);
-    const [error, setError] = useState(null);
-    const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
+    // --- State های مربوط به احراز هویت و نمایش (بدون تغییر) ---
+    const [view, setView] = useState("auth"); // auth, lobby, game, board
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
-    const [token, setToken] = useState(
-        () => localStorage.getItem("jwtToken") || null
-    );
+    const [error, setError] = useState(null);
     const [userData, setUserData] = useState(() => {
         const saved = localStorage.getItem("userData");
         return saved ? JSON.parse(saved) : null;
     });
-    const [gameActive, setGameActive] = useState(false);
+    const [token, setToken] = useState(() => localStorage.getItem("jwtToken") || null);
+    const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
     const [currentGameEventId, setCurrentGameEventId] = useState(null);
 
-    const timerId = useRef(null);
-    const abortControllerRef = useRef(null);
+    // --- State های جدید مخصوص بازی حافظه رنگ ---
+    const [sequence, setSequence] = useState([]);
+    const [playerSequence, setPlayerSequence] = useState([]);
+    const [level, setLevel] = useState(0);
+    const [isPlayerTurn, setIsPlayerTurn] = useState(false);
+    const [litPad, setLitPad] = useState(null); // کدام پد روشن شود
+    const [message, setMessage] = useState("حافظه رنگ‌ها");
+    const [finalScore, setFinalScore] = useState(null);
 
-    const clearResources = useCallback(() => {
-        if (timerId.current) clearInterval(timerId.current);
-        if (abortControllerRef.current) abortControllerRef.current.abort();
+    // --- تابع کمکی برای ایجاد تاخیر ---
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        timerId.current = null;
-        abortControllerRef.current = null;
+    // --- منطق اصلی بازی جدید ---
+
+    // نمایش دنباله رنگ‌ها به کاربر
+    const playSequence = useCallback(async (currentSequence) => {
+        setIsPlayerTurn(false);
+        setMessage("دقت کن...");
+        await sleep(1000); // تاخیر قبل از شروع نمایش
+        for (const color of currentSequence) {
+            setLitPad(color);
+            await sleep(400); // مدت زمان روشن ماندن
+            setLitPad(null);
+            await sleep(200); // فاصله بین رنگ‌ها
+        }
+        setMessage("نوبت تو!");
+        setIsPlayerTurn(true);
+        setPlayerSequence([]);
     }, []);
 
-    const handleGameOver = useCallback(
-        (finalScore) => {
-            clearResources();
-            setProblem(null);
-            setFinalScore(finalScore);
+    // رفتن به مرحله بعد
+    const nextLevel = useCallback(() => {
+        const colors = ["green", "red", "yellow", "blue"];
+        const nextColor = colors[Math.floor(Math.random() * colors.length)];
+        const newSequence = [...sequence, nextColor];
+        setSequence(newSequence);
+        setLevel(newSequence.length);
+        playSequence(newSequence);
+    }, [sequence, playSequence]);
+
+    // تابع پایان بازی و ذخیره امتیاز
+    const handleGameOver = useCallback(async (score) => {
+        setMessage(`باختی! تا مرحله ${score} پیش رفتی`);
+        setFinalScore(score);
+        setIsPlayerTurn(false);
+
+        // ارسال امتیاز به بک‌اند (فقط اگر امتیازی کسب شده باشد)
+        if (score > 0 && token) {
+            try {
+                // این اندپوینت را بعداً در بک‌اند خواهیم ساخت
+                await fetch(`${API_BASE}/gameOver`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        score: score,
+                        eventId: currentGameEventId
+                    })
+                });
+            } catch (err) {
+                console.error("Failed to save score:", err);
+                setError("خطا در ذخیره امتیاز");
+            }
+        }
+
+        // نمایش لیدربورد بعد از چند ثانیه
+        setTimeout(() => {
             setView("board");
             setLeaderboardKey(Date.now());
-            setGameActive(false);
-        },
-        [clearResources]
-    );
+        }, 2000);
+    }, [token, currentGameEventId]);
 
+    // مدیریت کلیک کاربر روی پدهای رنگی
+    const handlePadClick = useCallback((color) => {
+        if (!isPlayerTurn) return;
+
+        const newPlayerSequence = [...playerSequence, color];
+        setPlayerSequence(newPlayerSequence);
+
+        setLitPad(color); // روشن کردن پد کلیک شده برای بازخورد
+        setTimeout(() => setLitPad(null), 200);
+
+        // بررسی اینکه آیا کلیک کاربر درست بوده یا نه
+        if (newPlayerSequence[newPlayerSequence.length - 1] !== sequence[newPlayerSequence.length - 1]) {
+            handleGameOver(level - 1); // کاربر باخته است، امتیاز مرحله قبل ثبت می‌شود
+            return;
+        }
+
+        // اگر کاربر دنباله را کامل و درست وارد کرد
+        if (newPlayerSequence.length === sequence.length) {
+            setIsPlayerTurn(false);
+            setTimeout(nextLevel, 1000); // رفتن به مرحله بعد با کمی تاخیر
+        }
+    }, [isPlayerTurn, playerSequence, sequence, level, nextLevel, handleGameOver]);
+
+    // تابع شروع بازی
+    const startGame = useCallback((eventId) => {
+        setCurrentGameEventId(eventId);
+        setSequence([]);
+        setPlayerSequence([]);
+        setLevel(0);
+        setFinalScore(null);
+        setView("game");
+        setMessage("آماده؟");
+        
+        // شروع مرحله اول با تاخیر
+        setTimeout(() => {
+            nextLevel();
+        }, 1500);
+    }, [nextLevel]);
+
+    // --- توابع احراز هویت و کمکی (تقریبا بدون تغییر) ---
     const authenticateUser = useCallback(async () => {
+        setAuthLoading(true);
+        setError(null);
         try {
-            setAuthLoading(true);
-            setError(null);
-
-            if (!window.Telegram?.WebApp) {
-                console.log(
-                    "Running in non-Telegram environment, skipping authentication"
-                );
-                setIsAuthenticated(true);
-                setView("home");
-                return;
-            }
-
-            const initData = window.Telegram.WebApp.initData || "";
+            const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
-                throw new Error("Telegram authentication data not found");
+                // برای تست در مرورگر معمولی
+                console.warn("Running in non-Telegram environment.");
+                setIsAuthenticated(true);
+                setView("lobby");
+                setAuthLoading(false);
+                return;
             }
 
             const response = await fetch(`${API_BASE}/telegram-auth`, {
@@ -84,18 +153,12 @@ function App() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ initData }),
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData?.message || "Authentication failed");
-            }
-
             const data = await response.json();
 
-            if (!data?.valid) {
-                throw new Error(data?.message || "Invalid Telegram user");
+            if (!response.ok || !data.valid) {
+                throw new Error(data.message || "Authentication failed");
             }
-
+            
             setToken(data.token);
             setUserData(data.user);
             localStorage.setItem("jwtToken", data.token);
@@ -112,198 +175,6 @@ function App() {
         }
     }, []);
 
-    const submitAnswer = useCallback(
-        async (answer) => {
-            if (!problem || loading || !token) return;
-
-            try {
-                setLoading(true);
-                setError(null);
-                abortControllerRef.current = new AbortController();
-
-                const response = await fetch(`${API_BASE}/answer`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ answer: Boolean(answer) }),
-                    signal: abortControllerRef.current.signal,
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(
-                        errorData.message || "Failed to submit answer"
-                    );
-                }
-
-                const data = await response.json();
-
-                if (data.status === "continue") {
-                    setProblem(data.problem);
-                    setScore(data.score);
-                    startLocalTimer(data.time_left);
-                } else {
-                    handleGameOver(data.final_score);
-                }
-            } catch (err) {
-                if (err.name !== "AbortError") {
-                    console.error("Answer error:", err);
-                    setError(err.message || "Failed to submit answer");
-
-                    if (
-                        err.message.includes("token") ||
-                        err.message.includes("Unauthorized")
-                    ) {
-                        setIsAuthenticated(false);
-                        setView("auth");
-                    }
-                }
-            } finally {
-                if (!abortControllerRef.current?.signal.aborted) {
-                    setLoading(false);
-                }
-            }
-        },
-        [problem, loading, handleGameOver, token]
-    );
-
-    const handleTimeout = useCallback(async () => {
-        const response = await fetch(`${API_BASE}/timeOut`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to submit answer");
-        }
-        const data = await response.json();
-        handleGameOver(data.final_score);
-    }, [handleGameOver]);
-
-    const startLocalTimer = useCallback(
-        (initialTime) => {
-            clearResources();
-            setTimeLeft(initialTime);
-
-            timerId.current = setInterval(() => {
-                setTimeLeft((prev) => {
-                    if (prev <= 1) {
-                        handleTimeout();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        },
-        [clearResources, handleTimeout]
-    );
-
-    // MODIFIED: The `startGame` function now accepts `eventId`
-    const startGame = useCallback(
-        async (eventId) => {
-            setCurrentGameEventId(eventId); // شناسه رویداد این دور از بازی را به خاطر بسپار
-
-            // It now takes eventId as an argument
-            if (!isAuthenticated || !token) {
-                setError("Please authenticate first");
-                setView("auth");
-                return;
-            }
-
-            try {
-                setLoading(true);
-                setError(null);
-                setGameActive(true);
-
-                const abortController = new AbortController();
-                abortControllerRef.current = abortController;
-
-                const response = await fetch(`${API_BASE}/start`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    // Send the eventId (which can be null) in the request body
-                    body: JSON.stringify({ eventId }),
-                    signal: abortController.signal,
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(
-                        errorData.message ||
-                            `Request failed with status ${response.status}`
-                    );
-                }
-
-                const data = await response.json();
-
-                if (!data || data.status !== "success") {
-                    throw new Error(data?.message || "Invalid server response");
-                }
-
-                setProblem(data.problem);
-                startLocalTimer(data.time_left ?? ROUND_TIME);
-                setScore(data.score ?? 0);
-                setView("game"); // Set the view to 'game' to start playing
-            } catch (err) {
-                if (err.name === "AbortError") {
-                    console.log("Request was aborted");
-                    return;
-                }
-
-                console.error("Game start error:", err);
-                setError(
-                    err.message.includes("Failed to fetch")
-                        ? "Could not connect to server. Please check your connection."
-                        : err.message
-                );
-                setGameActive(false);
-                setView("lobby"); // On error, go back to the lobby, not 'home'
-            } finally {
-                if (!abortControllerRef.current?.signal.aborted) {
-                    setLoading(false);
-                }
-            }
-        },
-        [startLocalTimer, isAuthenticated, token]
-    );
-
-    const handleImageError = useCallback((e) => {
-        if (e.target.src !== DefaultAvatar) {
-            e.target.src = DefaultAvatar;
-        }
-        e.target.onerror = null;
-    }, []);
-
-    useEffect(() => {
-        const initAuth = async () => {
-            if (token && userData) {
-                setIsAuthenticated(true);
-                setView("lobby");
-                setAuthLoading(false);
-            } else {
-                await authenticateUser();
-            }
-        };
-
-        initAuth();
-        return () => clearResources();
-    }, [authenticateUser, clearResources, token, userData]);
-
-    useEffect(() => {
-        if (error) {
-            const timer = setTimeout(() => setError(null), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [error]);
-
     const handleLogout = useCallback(() => {
         localStorage.removeItem("jwtToken");
         localStorage.removeItem("userData");
@@ -312,153 +183,77 @@ function App() {
         setIsAuthenticated(false);
         setView("auth");
     }, []);
+    
+    const handleImageError = useCallback((e) => {
+        if (e.target.src !== DefaultAvatar) {
+            e.target.src = DefaultAvatar;
+        }
+    }, []);
 
-    const authContent = useMemo(() => {
-        if (view !== "auth") return null;
+    useEffect(() => {
+        if (token && userData) {
+            setIsAuthenticated(true);
+            setView("lobby");
+            setAuthLoading(false);
+        } else {
+            authenticateUser();
+        }
+    }, []); // فقط یکبار در اولین رندر اجرا شود
 
-        return (
-            <div className="flex flex-col items-center gap-6 w-full max-w-md">
-                <h2 className="text-2xl font-bold">Welcome to Math Game</h2>
-                <p className="text-center">
-                    {window.Telegram?.WebApp
-                        ? "Please authenticate with Telegram to play the game."
-                        : "This game is designed to run inside Telegram. Please open it in Telegram to play."}
-                </p>
-                {error && <p className="text-red-300">{error}</p>}
-                {window.Telegram?.WebApp && (
-                    <button
-                        onClick={authenticateUser}
-                        disabled={authLoading}
-                        className={`px-6 py-3 bg-white text-indigo-600 rounded-xl text-xl font-bold ${
-                            authLoading ? "opacity-50" : "hover:bg-gray-100"
-                        }`}
-                    >
-                        {authLoading
-                            ? "Authenticating..."
-                            : "Authenticate with Telegram"}
-                    </button>
-                )}
-            </div>
-        );
-    }, [view, authLoading, error, authenticateUser]);
+    // --- مدیریت نمایش کامپوننت‌ها (Render Logic) ---
+    const authContent = useMemo(() => view === "auth" && (
+        <div className="text-center">
+            <h2 className="text-2xl font-bold">به بازی حافظه رنگ خوش آمدید</h2>
+            {authLoading ? <p>در حال احراز هویت...</p> : <button onClick={authenticateUser}>Authenticate</button>}
+        </div>
+    ), [view, authLoading, authenticateUser]);
 
-    // NEW: This content will render the Game Lobby
-    const lobbyContent = useMemo(() => {
-        if (view !== "lobby") return null;
+    const lobbyContent = useMemo(() => view === "lobby" && (
+        <GameLobby
+            onGameStart={startGame}
+            userData={userData}
+            onLogout={handleLogout}
+            onImageError={handleImageError}
+        />
+    ), [view, startGame, userData, handleLogout, handleImageError]);
 
-        // Pass the necessary user data and functions to the lobby component
-        return (
-            <GameLobby
-                onGameStart={startGame}
-                userData={userData}
-                onLogout={handleLogout}
-                onImageError={handleImageError}
-            />
-        );
-    }, [view, startGame, userData, handleLogout, handleImageError]);
-    // محتوای بازی
-    const gameContent = useMemo(() => {
-        if (view !== "game") return null;
+    const gameContent = useMemo(() => view === "game" && (
+        <div className="flex flex-col items-center gap-6 w-full max-w-md text-center">
+            <h1 className="text-3xl font-bold h-10">{message}</h1>
+            <p className="text-xl">مرحله: {level}</p>
+            <ColorPads onPadClick={handlePadClick} litPad={litPad} playerTurn={isPlayerTurn} />
+        </div>
+    ), [view, message, level, handlePadClick, litPad, isPlayerTurn]);
 
-        return problem ? (
-            <div className="flex flex-col items-center gap-6 w-full max-w-md">
-                <div className="flex justify-between w-full">
-                    <p className="text-2xl font-bold">Score: {score}</p>
-                    {userData && (
-                        <div className="flex items-center gap-2">
-                            <img
-                                src={
-                                    userData.photo_url
-                                        ? `/api/avatar?url=${encodeURIComponent(
-                                              userData.photo_url
-                                          )}`
-                                        : DefaultAvatar
-                                }
-                                alt="Profile"
-                                className="w-12 h-12 rounded-full"
-                                onError={handleImageError}
-                            />
-                            <span>{userData.first_name}</span>
-                        </div>
-                    )}
-                </div>
-
-                <ProblemCard text={problem} />
-                <TimerCircle total={ROUND_TIME} left={timeLeft} />
-                <AnswerButtons
-                    onAnswer={submitAnswer}
-                    disabled={loading || !gameActive}
-                />
-            </div>
-        ) : (
-            <button
-                onClick={GameLobby}
-                disabled={loading}
-                className={`px-8 py-4 bg-white text-indigo-600 rounded-2xl text-2xl font-bold shadow-xl transition-transform ${
-                    loading ? "opacity-50" : "hover:scale-105"
-                }`}
-            >
-                {loading ? "Loading..." : "Start Game"}
-            </button>
-        );
-    }, [
-        view,
-        problem,
-        score,
-        timeLeft,
-        loading,
-        submitAnswer,
-        startGame,
-        userData,
-        gameActive,
-    ]);
-
-    const leaderboardContent = useMemo(
-        () =>
-            view === "board" && (
-                <Leaderboard
-                    key={leaderboardKey}
-                    API_BASE={API_BASE}
-                    finalScore={finalScore}
-                    onReplay={() => setView("lobby")}
-                    onHome={() => setView("lobby")}
-                    userData={userData}
-                    eventId={currentGameEventId} // شناسه رویداد ذخیره شده را به لیدربورد پاس بده
-                />
-            ),
-        [view, leaderboardKey, finalScore, userData, currentGameEventId]
-    );
+    const leaderboardContent = useMemo(() => view === "board" && (
+        <Leaderboard
+            key={leaderboardKey}
+            API_BASE={API_BASE}
+            finalScore={finalScore}
+            onReplay={() => setView("lobby")}
+            onHome={() => setView("lobby")}
+            userData={userData}
+            eventId={currentGameEventId}
+        />
+    ), [view, leaderboardKey, finalScore, userData, currentGameEventId]);
 
     return (
-        <div className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4">
-            {/* نمایش خطا */}
-            {error && (
-                <div
-                    className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-md shadow-lg z-50 max-w-md text-center animate-fade-in"
-                    role="alert"
-                >
+        <div className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4 font-[Vazirmatn]">
+             {error && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-md shadow-lg z-50">
                     {error}
-                    <button
-                        onClick={() => setError(null)}
-                        className="ml-2 text-white hover:text-gray-200"
-                        aria-label="Close error message"
-                    >
-                        &times;
-                    </button>
                 </div>
             )}
-
+            
             {authContent}
             {lobbyContent}
             {gameContent}
             {leaderboardContent}
-
-            {/* لوگوی تیم */}
+            
             <img
                 src={`${process.env.PUBLIC_URL}/teamlogo.png`}
                 alt="Team Logo"
-                className="absolute bottom-4 right-4 w-24 opacity-70 pointer-events-none select-none"
-                loading="lazy"
+                className="absolute bottom-4 right-4 w-24 opacity-70 pointer-events-none"
             />
         </div>
     );
