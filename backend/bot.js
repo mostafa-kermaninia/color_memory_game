@@ -1,5 +1,3 @@
-// backend/bot.js
-
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const logger = require('./logger');
@@ -9,30 +7,24 @@ if (!token) {
     throw new Error('Telegram BOT_TOKEN is not configured in .env file.');
 }
 
-// Create the bot instance WITHOUT starting it
 const bot = new TelegramBot(token);
 
-// --- Message Sending Functions ---
-// These functions can be safely imported and used by any script.
-// Find and replace this function in backend/bot.js
+// --- توابع ارسال پیام ---
 
 async function sendWinnerMessage(telegramId, userName, score, rewardLink) {
     const message = 
-`🏆 *Congratulations, ${userName}!* 🏆
+`🏆 *تبریک, ${userName}!* 🏆
 
-You are one of the top players in the last tournament!
+شما یکی از بازیکنان برتر در تورنومنت اخیر بودید!
 
-*Your final score:* *${score}*
+*امتیاز نهایی شما:* *${score}*
 
-You have earned a special reward. Click the button below to claim your prize.
-
----
-*Please note: The tournament has officially ended. New scores will not affect the final results.*`;
+شما یک جایزه ویژه کسب کرده‌اید. برای دریافت جایزه روی دکمه زیر کلیک کنید.`;
 
     const options = {
         parse_mode: 'Markdown',
         reply_markup: {
-            inline_keyboard: [[{ text: '🎁 Claim Your Reward', url: rewardLink }]]
+            inline_keyboard: [[{ text: '🎁 دریافت جایزه', url: rewardLink }]]
         }
     };
     try {
@@ -43,22 +35,23 @@ You have earned a special reward. Click the button below to claim your prize.
     }
 }
 
-// Find and replace this function in backend/bot.js
-
 async function sendConsolationMessage(telegramId, userName, topScore) {
     const message = 
-`👋 Hello, *${userName}*!
+`👋 سلام, *${userName}*!
 
-Thank you for participating in our latest tournament. This time you didn't make it to the top 10.
+از شرکت شما در تورنومنت اخیر سپاسگزاریم. این بار شما جزو ۱۰ نفر برتر نبودید.
 
-*Your highest score:* *${topScore}*
+*بالاترین امتیاز شما:* *${topScore}*
 
-The tournament has now officially ended. Keep practicing for the next event!`;
+تورنومنت اکنون به پایان رسیده است. برای رویداد بعدی به تمرین ادامه دهید!`;
 
     const options = {
         parse_mode: 'Markdown',
         reply_markup: {
-            inline_keyboard: [[{ text: '🚀 Play in Free mode and practice!', web_app: { url: 'https://momis.studio' } }]]
+            inline_keyboard: [[{ 
+                text: '🚀 تمرین در حالت آزاد', 
+                web_app: { url: 'https://memory.momis.studio' } // <--- تغییر: آدرس به بازی جدید آپدیت شد
+            }]]
         }
     };
     try {
@@ -68,26 +61,28 @@ The tournament has now officially ended. Keep practicing for the next event!`;
         logger.error(`Failed to send consolation message to ${telegramId}. Reason: ${error.message}`);
     }
 }
-// --- Bot Listening Function ---
-// This function will ONLY be called by our long-running bot process.
+
+// --- تابع گوش دادن ربات ---
 
 function startListening() {
     bot.onText(/\/start/, (msg) => {
-        const welcomeText = `🎉 Welcome, *${msg.from.first_name}*!\n\nClick the button below to play **Math Battle**!`;
+        // <--- تغییر: متن خوش‌آمدگویی برای بازی جدید آپدیت شد
+        const welcomeText = `🎉 خوش آمدی, *${msg.from.first_name}*!\n\nبرای شروع بازی **حافظه رنگی** روی دکمه زیر کلیک کن!`;
         const options = {
             parse_mode: 'Markdown',
             reply_markup: {
-                inline_keyboard: [[{ text: '🚀 Play Game!', web_app: { url: 'https://momis.studio' } }]]
+                inline_keyboard: [[{ 
+                    text: '🚀 شروع بازی!', 
+                    web_app: { url: 'https://memory.momis.studio' } // <--- تغییر: آدرس به بازی جدید آپدیت شد
+                }]]
             }
         };
         bot.sendMessage(msg.chat.id, welcomeText, options);
     });
 
-    // Activate polling to listen for messages
     bot.startPolling();
 
     bot.on('polling_error', (error) => {
-        // This prevents the bot from crashing on minor polling errors
         logger.error(`Telegram Polling Error: ${error.message}`);
     });
 
@@ -97,5 +92,5 @@ function startListening() {
 module.exports = {
     sendWinnerMessage,
     sendConsolationMessage,
-    startListening, // Export the new function
+    startListening,
 };

@@ -16,7 +16,7 @@ const allowedOrigins = [
     "https://momis.studio",
     "https://www.momis.studio",
     "https://web.telegram.org",
-    "http://localhost:3000", // برای تست در محیط توسعه
+    "https://memory.momis.studio", // <-- این خط اضافه شود
 ];
 const corsOptions = {
     origin: (origin, callback) => {

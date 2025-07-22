@@ -4,7 +4,7 @@ import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
 import DefaultAvatar from "./assets/default-avatar.png";
 
-const API_BASE = "https://momis.studio/api"; // یا آدرس بک‌اند شما
+const API_BASE = "https://memory.momis.studio/api"; // یا آدرس بک‌اند شما
 
 function App() {
     // --- State های مربوط به احراز هویت و نمایش (بدون تغییر) ---
