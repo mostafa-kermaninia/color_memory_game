@@ -1,43 +1,24 @@
-// ۱. وارد کردن نمونه sequelize از فایل database.js
+'use strict';
+
 const sequelize = require('../database');
+const { DataTypes } = require('sequelize');
 
-// ۲. وارد کردن تمام مدل‌ها
-const User = require('./User');
-const Score = require('./Score');
-const Reward = require('./Reward');
-
-// ساخت یک آبجکت برای نگهداری همه چیز
 const db = {};
 
-db.User = User;
-db.Score = Score;
-db.Reward = Reward;
+// مدل‌ها را به درستی فراخوانی و با sequelize مقداردهی اولیه می‌کنیم
+db.User = require('./User')(sequelize, DataTypes);
+db.Score = require('./Score')(sequelize, DataTypes);
+db.Reward = require('./Reward')(sequelize, DataTypes);
 
-// ۳. تعریف روابط بین مدل‌ها
-// رابطه یک به چند بین کاربر و امتیاز
-db.User.hasMany(db.Score, {
-  foreignKey: { name: 'userTelegramId', allowNull: false },
-  sourceKey: 'telegramId',
-  as: 'Scores'
-});
-db.Score.belongsTo(db.User, {
-  foreignKey: { name: 'userTelegramId', allowNull: false },
-  targetKey: 'telegramId'
+// حالا که مدل‌ها معتبر هستند، روابط (associations) را تعریف می‌کنیم
+// این کار را با فراخوانی متد associate از هر مدل انجام می‌دهیم
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
 });
 
-// رابطه یک به چند بین کاربر و جایزه
-db.User.hasMany(db.Reward, {
-  foreignKey: { name: 'userTelegramId', allowNull: false },
-  sourceKey: 'telegramId',
-  as: 'Rewards'
-});
-db.Reward.belongsTo(db.User, {
-  foreignKey: { name: 'userTelegramId', allowNull: false },
-  targetKey: 'telegramId'
-});
-
-// ۴. اضافه کردن نمونه sequelize به آبجکت نهایی
 db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
-// ۵. صدور آبجکت نهایی برای استفاده در سرور
 module.exports = db;

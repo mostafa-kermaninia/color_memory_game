@@ -1,3 +1,4 @@
+
 const { Sequelize } = require('sequelize');
 console.log("🟡 [database.js] File execution started.");
 
