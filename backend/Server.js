@@ -64,7 +64,7 @@ app.post("/api/telegram-auth", async (req, res) => {
         const { initData } = req.body;
         if (!initData) return res.status(400).json({ valid: false, message: "initData is required" });
 
-        const userData = validateTelegramData(initData, process.env.BOT_TOKEN);
+        const userData = validateTelegramData(initData);
 
         const [user, created] = await User.findOrCreate({
             where: { telegramId: userData.id },

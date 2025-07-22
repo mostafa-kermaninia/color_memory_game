@@ -1,9 +1,9 @@
 import { validate } from "@tma.js/init-data-node";
 
-export default function validateTelegramData(rawInitData, botToken) {
+export default function validateTelegramData(rawInitData) {
   try {
     // اعتبارسنجی داده‌ها
-    validate(rawInitData, botToken);
+    validate(rawInitData, process.env.BOT_TOKEN);
 
     // استخراج پارامترها
     const initData = new URLSearchParams(rawInitData);
