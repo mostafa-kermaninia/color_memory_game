@@ -52,15 +52,23 @@ function App() {
         setPlayerSequence([]);
     }, []);
 
-    // رفتن به مرحله بعد
+    // frontend/src/App.js
+
     const nextLevel = useCallback(() => {
         const colors = ["green", "red", "yellow", "blue"];
         const nextColor = colors[Math.floor(Math.random() * colors.length)];
-        const newSequence = [...sequence, nextColor];
-        setSequence(newSequence);
-        setLevel(newSequence.length);
-        playSequence(newSequence);
-    }, [sequence, playSequence]);
+
+        // --- تغییر اصلی اینجاست ---
+        // ما به React می‌گوییم که با آخرین مقدار قبلی کار کند
+        setSequence((prevSequence) => {
+            const newSequence = [...prevSequence, nextColor];
+            playSequence(newSequence); // playSequence را به اینجا منتقل می‌کنیم
+            return newSequence;
+        });
+
+        setLevel((prevLevel) => prevLevel + 1);
+        // --- پایان تغییر ---
+    }, [playSequence]); // <-- وابستگی sequence حذف شد چون دیگر لازم نیست
 
     // تابع پایان بازی و ذخیره امتیاز
     const handleGameOver = useCallback(
@@ -134,7 +142,6 @@ function App() {
             handleGameOver,
         ]
     );
-
 
     const startGame = useCallback(
         (eventId) => {
