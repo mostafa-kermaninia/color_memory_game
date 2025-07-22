@@ -1,6 +1,6 @@
 // این فایل را فقط زمانی اجرا کنید که مدل‌های دیتابیس را تغییر داده‌اید
 require('dotenv').config();
-const { sequelize } = require('./DataBase/models'); // مسیر صحیح به مدل‌ها
+const { sequelize } = require('./models'); // مسیر صحیح به مدل‌ها
 
 console.log('Starting database synchronization...');
 
