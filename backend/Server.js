@@ -104,14 +104,15 @@ app.post("/api/telegram-auth", async (req, res) => {
     }
 });
 
-/**
- * @route POST /api/gameOver
- * @desc اندپوینت جدید برای ذخیره امتیاز نهایی کاربر پس از پایان بازی
- * این اندپوینت جایگزین /answer و /timeOut شده است.
- */
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score, eventId } = req.body;
     const userId = req.user.userId;
+
+    logger.info(
+        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
+            eventId || "Free Play"
+        }`
+    );
 
     // اعتبار سنجی امتیاز
     if (typeof score !== "number" || score < 0) {

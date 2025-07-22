@@ -56,8 +56,8 @@ function App() {
 
     const nextLevel = useCallback(() => {
         console.log(
-            `%c[nextLevel] Starting. Current level: ${level}, Current sequence length: ${sequence.length}`,
-            "color: orange;"
+            `%c[nextLevel] Starting. Current level: ${level}, Sequence length: ${sequence.length}`,
+            "color: #FF8C00;"
         );
 
         const colors = ["green", "red", "yellow", "blue"];
@@ -78,6 +78,11 @@ function App() {
     // تابع پایان بازی و ذخیره امتیاز
     const handleGameOver = useCallback(
         async (score) => {
+            console.log(
+                `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
+                "color: #DC143C;"
+            );
+
             setMessage(`You lose! Your reach level ${score}`);
             setFinalScore(score);
             setIsPlayerTurn(false);
@@ -150,12 +155,10 @@ function App() {
 
     const startGame = useCallback(
         (eventId) => {
-            // --- لاگ تشخیصی شماره ۱ ---
             console.log(
-                "%c[startGame] Game starting... Resetting state.",
-                "color: green; font-weight: bold;"
+                `%c[startGame] STARTING NEW GAME. State BEFORE reset: level=${level}, sequence length=${sequence.length}`,
+                "color: #00FF7F; font-weight: bold;"
             );
-            // ---
 
             setCurrentGameEventId(eventId);
 
@@ -171,12 +174,11 @@ function App() {
 
             // شروع مرحله اول با تاخیر
             setTimeout(() => {
-                // --- لاگ تشخیصی شماره ۳ ---
                 console.log(
-                    "%c[startGame] setTimeout triggered. Calling nextLevel().",
-                    "color: blue;"
+                    `%c[startGame -> setTimeout] Calling nextLevel(). State SHOULD BE reset now.`,
+                    "color: #1E90FF;"
                 );
-                // ---
+
                 nextLevel();
             }, 1500);
         },
