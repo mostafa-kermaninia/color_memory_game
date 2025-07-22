@@ -36,12 +36,17 @@ app.use(cors(corsOptions));
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Authentication token required" });
+    if (!token)
+        return res
+            .status(401)
+            .json({ message: "Authentication token required" });
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             logger.warn(`JWT verification failed: ${err.message}`);
-            return res.status(403).json({ message: "Invalid or expired token" });
+            return res
+                .status(403)
+                .json({ message: "Invalid or expired token" });
         }
         req.user = user;
         next();
@@ -56,7 +61,10 @@ app.post("/api/telegram-auth", async (req, res) => {
 
     try {
         const { initData } = req.body;
-        if (!initData) return res.status(400).json({ valid: false, message: "initData is required" });
+        if (!initData)
+            return res
+                .status(400)
+                .json({ valid: false, message: "initData is required" });
 
         const userData = validateTelegramData(initData);
 
@@ -64,17 +72,17 @@ app.post("/api/telegram-auth", async (req, res) => {
             where: { telegramId: userData.id },
             defaults: {
                 firstName: userData.first_name,
-                lastName: userData.last_name || '',
-                username: userData.username || '',
+                lastName: userData.last_name || "",
+                username: userData.username || "",
                 photo_url: userData.photo_url || null,
             },
         });
-        
+
         // اگر کاربر از قبل وجود داشت، اطلاعاتش را آپدیت می‌کنیم
         if (!created) {
             user.firstName = userData.first_name;
-            user.lastName = userData.last_name || '';
-            user.username = userData.username || '';
+            user.lastName = userData.last_name || "";
+            user.username = userData.username || "";
             user.photo_url = userData.photo_url || null;
             await user.save();
         }
@@ -89,43 +97,57 @@ app.post("/api/telegram-auth", async (req, res) => {
         res.json({ valid: true, user: userData, token });
     } catch (error) {
         logger.error(`Telegram auth error: ${error.message}`);
-        res.status(401).json({ valid: false, message: "Authentication failed" });
+        res.status(401).json({
+            valid: false,
+            message: "Authentication failed",
+        });
     }
 });
-
 
 /**
  * @route POST /api/gameOver
  * @desc اندپوینت جدید برای ذخیره امتیاز نهایی کاربر پس از پایان بازی
  * این اندپوینت جایگزین /answer و /timeOut شده است.
  */
-app.post('/api/gameOver', authenticateToken, async (req, res) => {
+app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score, eventId } = req.body;
     const userId = req.user.userId;
 
     // اعتبار سنجی امتیاز
-    if (typeof score !== 'number' || score < 0) {
+    if (typeof score !== "number" || score < 0) {
         logger.warn(`Invalid score received for user ${userId}: ${score}`);
-        return res.status(400).json({ status: 'error', message: 'Invalid score.' });
+        return res
+            .status(400)
+            .json({ status: "error", message: "Invalid score." });
     }
-    
+
     try {
         await Score.create({
             score: score,
             userTelegramId: userId,
             // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
-            eventId: eventId || null
+            eventId: eventId || null,
         });
 
-        logger.info(`Score ${score} saved for user ${userId} in event ${eventId || "Free Play"}`);
-        res.status(201).json({ status: 'success', message: 'Score saved successfully.' });
-
+        logger.info(
+            `Score ${score} saved for user ${userId} in event ${
+                eventId || "Free Play"
+            }`
+        );
+        res.status(201).json({
+            status: "success",
+            message: "Score saved successfully.",
+        });
     } catch (error) {
-        logger.error(`Failed to save score for user ${userId}: ${error.message}`);
-        res.status(500).json({ status: 'error', message: 'Could not save score due to a server error.' });
+        logger.error(
+            `Failed to save score for user ${userId}: ${error.message}`
+        );
+        res.status(500).json({
+            status: "error",
+            message: "Could not save score due to a server error.",
+        });
     }
 });
-
 
 /**
  * @route GET /api/leaderboard
@@ -137,29 +159,48 @@ app.get("/api/leaderboard", async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const { eventId } = req.query;
 
-        const whereCondition = { eventId: (eventId && eventId !== 'null') ? eventId : null };
-        
+        const whereCondition = {
+            eventId: eventId && eventId !== "null" ? eventId : null,
+        };
+
         const topScores = await Score.findAll({
             where: whereCondition,
-            attributes: ['userTelegramId', [sequelize.fn('MAX', sequelize.col('score')), 'max_score']],
-            group: ['userTelegramId'],
-            order: [[sequelize.fn('MAX', sequelize.col('score')), 'DESC']],
+            attributes: [
+                "userTelegramId",
+                [sequelize.fn("MAX", sequelize.col("score")), "max_score"],
+            ],
+            group: ["userTelegramId"],
+            order: [[sequelize.fn("MAX", sequelize.col("score")), "DESC"]],
             limit: limit,
-            include: [{ model: User, attributes: ['telegramId', 'username', 'firstName', 'photo_url'] }]
+            include: [
+                {
+                    model: User,
+                    as: "user",
+                    attributes: [
+                        "telegramId",
+                        "username",
+                        "firstName",
+                        "photo_url",
+                    ],
+                },
+            ], // <--- تغییر اینجاست
         });
 
-        const leaderboard = topScores.map(entry => ({
+        const leaderboard = topScores.map((entry) => ({
             telegramId: entry.User.telegramId,
             username: entry.User.username,
             firstName: entry.User.firstName,
             photo_url: entry.User.photo_url,
-            score: entry.get('max_score'),
+            score: entry.get("max_score"),
         }));
 
         res.json({ status: "success", leaderboard });
     } catch (e) {
         logger.error(`Leaderboard error: ${e.message}`);
-        res.status(500).json({ status: "error", message: "Internal server error" });
+        res.status(500).json({
+            status: "error",
+            message: "Internal server error",
+        });
     }
 });
 
@@ -191,7 +232,7 @@ app.get("/api/avatar", async (req, res) => {
         }
         const response = await fetch(externalUrl);
         if (!response.ok) throw new Error("Failed to fetch image");
-        
+
         res.setHeader("Content-Type", response.headers.get("content-type"));
         res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
         response.body.pipe(res);
