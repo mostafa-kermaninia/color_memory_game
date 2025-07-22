@@ -47,7 +47,7 @@ function App() {
             setLitPad(null);
             await sleep(200); // فاصله بین رنگ‌ها
         }
-        setMessage("نوبت تو!");
+        setMessage("Your turn!");
         setIsPlayerTurn(true);
         setPlayerSequence([]);
     }, []);
@@ -55,6 +55,11 @@ function App() {
     // frontend/src/App.js
 
     const nextLevel = useCallback(() => {
+        console.log(
+            `%c[nextLevel] Starting. Current level: ${level}, Current sequence length: ${sequence.length}`,
+            "color: orange;"
+        );
+
         const colors = ["green", "red", "yellow", "blue"];
         const nextColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -73,7 +78,7 @@ function App() {
     // تابع پایان بازی و ذخیره امتیاز
     const handleGameOver = useCallback(
         async (score) => {
-            setMessage(`باختی! تا مرحله ${score} پیش رفتی`);
+            setMessage(`You lose! Your reach level ${score}`);
             setFinalScore(score);
             setIsPlayerTurn(false);
 
@@ -145,6 +150,13 @@ function App() {
 
     const startGame = useCallback(
         (eventId) => {
+            // --- لاگ تشخیصی شماره ۱ ---
+            console.log(
+                "%c[startGame] Game starting... Resetting state.",
+                "color: green; font-weight: bold;"
+            );
+            // ---
+
             setCurrentGameEventId(eventId);
 
             // --- این خطوط باید اضافه شوند تا بازی ریست شود ---
@@ -155,10 +167,16 @@ function App() {
             // --- پایان بخش اضافه شده ---
 
             setView("game");
-            setMessage("آماده؟");
+            setMessage("Ready?");
 
             // شروع مرحله اول با تاخیر
             setTimeout(() => {
+                // --- لاگ تشخیصی شماره ۳ ---
+                console.log(
+                    "%c[startGame] setTimeout triggered. Calling nextLevel().",
+                    "color: blue;"
+                );
+                // ---
                 nextLevel();
             }, 1500);
         },
@@ -237,10 +255,10 @@ function App() {
             view === "auth" && (
                 <div className="text-center">
                     <h2 className="text-2xl font-bold">
-                        به بازی حافظه رنگ خوش آمدید
+                        Welcome to color memory game{" "}
                     </h2>
                     {authLoading ? (
-                        <p>در حال احراز هویت...</p>
+                        <p>authenticating...</p>
                     ) : (
                         <button onClick={authenticateUser}>Authenticate</button>
                     )}
@@ -267,7 +285,7 @@ function App() {
             view === "game" && (
                 <div className="flex flex-col items-center gap-6 w-full max-w-md text-center">
                     <h1 className="text-3xl font-bold h-10">{message}</h1>
-                    <p className="text-xl">مرحله: {level}</p>
+                    <p className="text-xl">Level: {level}</p>
                     <ColorPads
                         onPadClick={handlePadClick}
                         litPad={litPad}
