@@ -1,26 +1,17 @@
-// backend/DataBase/models/Score.js
+'use strict';
+const { Model } = require('sequelize');
 
-const { DataTypes } = require("sequelize");
-const sequelize = require("../database");
-
-const Score = sequelize.define(
-    "Score",
-    {
-        score: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-        eventId: {
-            type: DataTypes.STRING,
-            // Allow this field to be null for "Free Play" games.
-            allowNull: true, // <-- This is the only change here.
-            comment: "The UUID of the ONTON event. NULL if it's a free play.",
-        },
-    },
-    {
-        tableName: "scores",
-        timestamps: true,
+module.exports = (sequelize, DataTypes) => {
+  class Score extends Model {
+    static associate(models) {
+      Score.belongsTo(models.User, { foreignKey: 'userTelegramId', targetKey: 'telegramId', as: 'user' });
     }
-);
-
-module.exports = Score;
+  }
+  Score.init({
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true, allowNull: false },
+    score: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    userTelegramId: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'Users', key: 'telegramId' } },
+    eventId: { type: DataTypes.UUID, allowNull: true }
+  }, { sequelize, modelName: 'Score', tableName: 'Scores' });
+  return Score;
+};

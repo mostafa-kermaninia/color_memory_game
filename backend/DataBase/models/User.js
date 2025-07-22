@@ -1,39 +1,20 @@
-// Import DataTypes from Sequelize and the sequelize instance
-const { DataTypes } = require("sequelize");
-const sequelize = require("../database"); // Path to the sequelize instance from database.js
+'use strict';
+const { Model } = require('sequelize');
 
-// Define the User model
-const User = sequelize.define(
-    "User", // Model name
-    {
-        telegramId: {
-            type: DataTypes.BIGINT,    // Use BIGINT for large Telegram IDs
-            allowNull: false,          // This field cannot be null
-            unique: true,              // Must be unique across the table
-            primaryKey: true,          // This field serves as the primary key
-        },
-        username: {
-            type: DataTypes.STRING,
-            allowNull: true,           // Telegram users might not have a username
-        },
-        firstName: {
-            type: DataTypes.STRING,
-            allowNull: false,          // Telegram usually provides a first name
-        },
-        lastName: {
-            type: DataTypes.STRING,
-            allowNull: true,           // Last name is optional on Telegram
-        },
-          photo_url: {
-            type: DataTypes.STRING,
-            allowNull: true, // ممکن است برخی کاربران عکس پروفایل نداشته باشند
-        },
-    },
-    {
-        tableName: "users",         // Explicitly define the table name
-        timestamps: true,           // Automatically add createdAt and updatedAt fields
+module.exports = (sequelize, DataTypes) => {
+  class User extends Model {
+    static associate(models) {
+      User.hasMany(models.Score, { foreignKey: 'userTelegramId', sourceKey: 'telegramId', as: 'scores' });
+      // یک کاربر می‌تواند چندین جایزه داشته باشد
+      User.hasMany(models.Reward, { foreignKey: 'userTelegramId', sourceKey: 'telegramId', as: 'rewards' });
     }
-);
-
-// Export the User model
-module.exports = User;
+  }
+  User.init({
+    telegramId: { type: DataTypes.BIGINT, primaryKey: true, allowNull: false },
+    firstName: { type: DataTypes.STRING, allowNull: false },
+    lastName: { type: DataTypes.STRING, allowNull: true },
+    username: { type: DataTypes.STRING, allowNull: true, unique: true },
+    photo_url: { type: DataTypes.STRING, allowNull: true }
+  }, { sequelize, modelName: 'User', tableName: 'Users' });
+  return User;
+};

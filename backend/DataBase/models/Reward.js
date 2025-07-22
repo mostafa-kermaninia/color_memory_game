@@ -1,27 +1,41 @@
-// backend/DataBase/models/Reward.js
+'use strict';
+const { Model } = require('sequelize');
 
-const { DataTypes } = require("sequelize");
-const sequelize = require("../database");
-
-const Reward = sequelize.define(
-    "Reward",
-    {
-        // ستون جدید برای ذخیره لینک پاداش از ONTON
-        rewardLink: {
-            type: DataTypes.STRING,
-            allowNull: false, // لینک پاداش همیشه باید وجود داشته باشد
-        },
-        // ستون جدید برای ذخیره شناسه رویداد
-        eventId: {
-            type: DataTypes.STRING,
-            allowNull: true, // اختیاری، اما برای پیگیری بهتر است باشد
-        },
-        // userTelegramId از طریق ارتباط با مدل User اضافه خواهد شد
-    },
-    {
-        tableName: "rewards",
-        timestamps: true,
+module.exports = (sequelize, DataTypes) => {
+  class Reward extends Model {
+    static associate(models) {
+      Reward.belongsTo(models.User, { foreignKey: 'userTelegramId', targetKey: 'telegramId', as: 'user' });
     }
-);
-
-module.exports = Reward;
+  }
+  Reward.init({
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true, allowNull: false },
+    // لینک جایزه‌ای که از API دریافت می‌شود
+    rewardLink: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    // شناسه رویدادی که این جایزه متعلق به آن است
+    eventId: {
+      type: DataTypes.UUID,
+      allowNull: false
+    },
+    // شناسه تلگرام کاربری که جایزه را دریافت کرده
+    userTelegramId: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: { model: 'Users', key: 'telegramId' }
+    }
+  }, {
+    sequelize,
+    modelName: 'Reward',
+    tableName: 'Rewards',
+    // ایجاد یک ایندکس ترکیبی برای جلوگیری از ثبت جایزه تکراری برای یک کاربر در یک رویداد
+    indexes: [
+        {
+            unique: true,
+            fields: ['eventId', 'userTelegramId']
+        }
+    ]
+  });
+  return Reward;
+};
