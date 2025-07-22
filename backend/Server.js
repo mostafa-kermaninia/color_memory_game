@@ -214,7 +214,7 @@ app.get("*", (req, res) => {
 });
 
 // --- راه‌اندازی سرور ---
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10001;
 app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
     logger.info(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
