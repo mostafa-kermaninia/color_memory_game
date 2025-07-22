@@ -2,7 +2,7 @@
 <!-- ورود به هاست -->
 root@DESKTOP-AGHA-MOSTAFA:~# ssh mostafa@65.109.186.25
 <!-- دریافت اپدیت ها از گیتهاب -->
-mostafa@ubuntu-4gb-hel1-4:~$ cd ../../var/www/mini-app/
+cd ../../var/www/color_memory/
 mostafa@ubuntu-4gb-hel1-4:/var/www/mini-app$ git fetch origin
 mostafa@ubuntu-4gb-hel1-4:/var/www/mini-app$ git pull
 <!-- ساخت بیلد جدید فرانت -->

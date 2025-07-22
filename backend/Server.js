@@ -56,6 +56,11 @@ const authenticateToken = (req, res, next) => {
  * این بخش بدون تغییر باقی می‌ماند.
  */
 app.post("/api/telegram-auth", async (req, res) => {
+    // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
+    logger.info(`Auth request received from origin: ${req.headers.origin}`);
+    logger.info("Request body:", JSON.stringify(req.body, null, 2));
+    // --- پایان لاگ تشخیصی ---
+
     try {
         const { initData } = req.body;
         if (!initData) return res.status(400).json({ valid: false, message: "initData is required" });
