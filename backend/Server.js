@@ -186,13 +186,15 @@ app.get("/api/leaderboard", async (req, res) => {
             ], // <--- تغییر اینجاست
         });
 
-        const leaderboard = topScores.map((entry) => ({
-            telegramId: entry.User.telegramId,
-            username: entry.User.username,
-            firstName: entry.User.firstName,
-            photo_url: entry.User.photo_url,
-            score: entry.get("max_score"),
-        }));
+        const leaderboard = topScores
+            .filter((entry) => entry.user) // <-- این خط اضافه شده: فقط امتیازاتی که کاربر معتبر دارند را نگه می‌دارد
+            .map((entry) => ({
+                telegramId: entry.user.telegramId,
+                username: entry.user.username,
+                firstName: entry.user.firstName,
+                photo_url: entry.user.photo_url,
+                score: entry.get("max_score"),
+            }));
 
         res.json({ status: "success", leaderboard });
     } catch (e) {
