@@ -70,6 +70,7 @@ The tournament has now officially ended. Keep practicing for the next event!`;
 
 function startListening() {
     bot.onText(/\/start/, (msg) => {
+        console.log("poooooooooooooooooooo");
         const welcomeText = `🎉 Welcome, *${msg.from.first_name}*!\n\nReady to test your memory? Click the button below to start playing **Color Memory**!`;
         const options = {
             parse_mode: "Markdown",
