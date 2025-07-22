@@ -2,7 +2,8 @@
 const { Sequelize } = require('sequelize');
 console.log("🟡 [database.js] File execution started.");
 
-require('dotenv').config(); // متغیرها را از .env می‌خواند
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 // --- لاگ تشخیصی شماره ۲: بررسی متغیر DB_URL ---
 console.log("🟡 [database.js] Attempting to read DB_URL from process.env...");
