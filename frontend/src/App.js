@@ -16,7 +16,9 @@ function App() {
         const saved = localStorage.getItem("userData");
         return saved ? JSON.parse(saved) : null;
     });
-    const [token, setToken] = useState(() => localStorage.getItem("jwtToken") || null);
+    const [token, setToken] = useState(
+        () => localStorage.getItem("jwtToken") || null
+    );
     const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
     const [currentGameEventId, setCurrentGameEventId] = useState(null);
 
@@ -61,78 +63,100 @@ function App() {
     }, [sequence, playSequence]);
 
     // تابع پایان بازی و ذخیره امتیاز
-    const handleGameOver = useCallback(async (score) => {
-        setMessage(`باختی! تا مرحله ${score} پیش رفتی`);
-        setFinalScore(score);
-        setIsPlayerTurn(false);
+    const handleGameOver = useCallback(
+        async (score) => {
+            setMessage(`باختی! تا مرحله ${score} پیش رفتی`);
+            setFinalScore(score);
+            setIsPlayerTurn(false);
 
-        // ارسال امتیاز به بک‌اند (فقط اگر امتیازی کسب شده باشد)
-        if (score > 0 && token) {
-            try {
-                // این اندپوینت را بعداً در بک‌اند خواهیم ساخت
-                await fetch(`${API_BASE}/gameOver`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        score: score,
-                        eventId: currentGameEventId
-                    })
-                });
-            } catch (err) {
-                console.error("Failed to save score:", err);
-                setError("خطا در ذخیره امتیاز");
+            // ارسال امتیاز به بک‌اند (فقط اگر امتیازی کسب شده باشد)
+            if (score > 0 && token) {
+                try {
+                    // این اندپوینت را بعداً در بک‌اند خواهیم ساخت
+                    await fetch(`${API_BASE}/gameOver`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            score: score,
+                            eventId: currentGameEventId,
+                        }),
+                    });
+                } catch (err) {
+                    console.error("Failed to save score:", err);
+                    setError("خطا در ذخیره امتیاز");
+                }
             }
-        }
 
-        // نمایش لیدربورد بعد از چند ثانیه
-        setTimeout(() => {
-            setView("board");
-            setLeaderboardKey(Date.now());
-        }, 2000);
-    }, [token, currentGameEventId]);
+            // نمایش لیدربورد بعد از چند ثانیه
+            setTimeout(() => {
+                setView("board");
+                setLeaderboardKey(Date.now());
+            }, 2000);
+        },
+        [token, currentGameEventId]
+    );
 
     // مدیریت کلیک کاربر روی پدهای رنگی
-    const handlePadClick = useCallback((color) => {
-        if (!isPlayerTurn) return;
+    const handlePadClick = useCallback(
+        (color) => {
+            if (!isPlayerTurn) return;
 
-        const newPlayerSequence = [...playerSequence, color];
-        setPlayerSequence(newPlayerSequence);
+            const newPlayerSequence = [...playerSequence, color];
+            setPlayerSequence(newPlayerSequence);
 
-        setLitPad(color); // روشن کردن پد کلیک شده برای بازخورد
-        setTimeout(() => setLitPad(null), 200);
+            setLitPad(color); // روشن کردن پد کلیک شده برای بازخورد
+            setTimeout(() => setLitPad(null), 200);
 
-        // بررسی اینکه آیا کلیک کاربر درست بوده یا نه
-        if (newPlayerSequence[newPlayerSequence.length - 1] !== sequence[newPlayerSequence.length - 1]) {
-            handleGameOver(level - 1); // کاربر باخته است، امتیاز مرحله قبل ثبت می‌شود
-            return;
-        }
+            // بررسی اینکه آیا کلیک کاربر درست بوده یا نه
+            if (
+                newPlayerSequence[newPlayerSequence.length - 1] !==
+                sequence[newPlayerSequence.length - 1]
+            ) {
+                handleGameOver(level - 1); // کاربر باخته است، امتیاز مرحله قبل ثبت می‌شود
+                return;
+            }
 
-        // اگر کاربر دنباله را کامل و درست وارد کرد
-        if (newPlayerSequence.length === sequence.length) {
-            setIsPlayerTurn(false);
-            setTimeout(nextLevel, 1000); // رفتن به مرحله بعد با کمی تاخیر
-        }
-    }, [isPlayerTurn, playerSequence, sequence, level, nextLevel, handleGameOver]);
+            // اگر کاربر دنباله را کامل و درست وارد کرد
+            if (newPlayerSequence.length === sequence.length) {
+                setIsPlayerTurn(false);
+                setTimeout(nextLevel, 1000); // رفتن به مرحله بعد با کمی تاخیر
+            }
+        },
+        [
+            isPlayerTurn,
+            playerSequence,
+            sequence,
+            level,
+            nextLevel,
+            handleGameOver,
+        ]
+    );
 
-    // تابع شروع بازی
-    const startGame = useCallback((eventId) => {
-        setCurrentGameEventId(eventId);
-        setSequence([]);
-        setPlayerSequence([]);
-        setLevel(0);
-        setFinalScore(null);
-        setView("game");
-        setMessage("آماده؟");
-        
-        // شروع مرحله اول با تاخیر
-        setTimeout(() => {
-            nextLevel();
-        }, 1500);
-    }, [nextLevel]);
 
+    const startGame = useCallback(
+        (eventId) => {
+            setCurrentGameEventId(eventId);
+
+            // --- این خطوط باید اضافه شوند تا بازی ریست شود ---
+            setSequence([]);
+            setPlayerSequence([]);
+            setLevel(0);
+            setFinalScore(null);
+            // --- پایان بخش اضافه شده ---
+
+            setView("game");
+            setMessage("آماده؟");
+
+            // شروع مرحله اول با تاخیر
+            setTimeout(() => {
+                nextLevel();
+            }, 1500);
+        },
+        [nextLevel]
+    ); // وابستگی‌ها صحیح است و نیازی به تغییر ندارد
     // --- توابع احراز هویت و کمکی (تقریبا بدون تغییر) ---
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
@@ -158,7 +182,7 @@ function App() {
             if (!response.ok || !data.valid) {
                 throw new Error(data.message || "Authentication failed");
             }
-            
+
             setToken(data.token);
             setUserData(data.user);
             localStorage.setItem("jwtToken", data.token);
@@ -183,7 +207,7 @@ function App() {
         setIsAuthenticated(false);
         setView("auth");
     }, []);
-    
+
     const handleImageError = useCallback((e) => {
         if (e.target.src !== DefaultAvatar) {
             e.target.src = DefaultAvatar;
@@ -201,55 +225,81 @@ function App() {
     }, []); // فقط یکبار در اولین رندر اجرا شود
 
     // --- مدیریت نمایش کامپوننت‌ها (Render Logic) ---
-    const authContent = useMemo(() => view === "auth" && (
-        <div className="text-center">
-            <h2 className="text-2xl font-bold">به بازی حافظه رنگ خوش آمدید</h2>
-            {authLoading ? <p>در حال احراز هویت...</p> : <button onClick={authenticateUser}>Authenticate</button>}
-        </div>
-    ), [view, authLoading, authenticateUser]);
+    const authContent = useMemo(
+        () =>
+            view === "auth" && (
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold">
+                        به بازی حافظه رنگ خوش آمدید
+                    </h2>
+                    {authLoading ? (
+                        <p>در حال احراز هویت...</p>
+                    ) : (
+                        <button onClick={authenticateUser}>Authenticate</button>
+                    )}
+                </div>
+            ),
+        [view, authLoading, authenticateUser]
+    );
 
-    const lobbyContent = useMemo(() => view === "lobby" && (
-        <GameLobby
-            onGameStart={startGame}
-            userData={userData}
-            onLogout={handleLogout}
-            onImageError={handleImageError}
-        />
-    ), [view, startGame, userData, handleLogout, handleImageError]);
+    const lobbyContent = useMemo(
+        () =>
+            view === "lobby" && (
+                <GameLobby
+                    onGameStart={startGame}
+                    userData={userData}
+                    onLogout={handleLogout}
+                    onImageError={handleImageError}
+                />
+            ),
+        [view, startGame, userData, handleLogout, handleImageError]
+    );
 
-    const gameContent = useMemo(() => view === "game" && (
-        <div className="flex flex-col items-center gap-6 w-full max-w-md text-center">
-            <h1 className="text-3xl font-bold h-10">{message}</h1>
-            <p className="text-xl">مرحله: {level}</p>
-            <ColorPads onPadClick={handlePadClick} litPad={litPad} playerTurn={isPlayerTurn} />
-        </div>
-    ), [view, message, level, handlePadClick, litPad, isPlayerTurn]);
+    const gameContent = useMemo(
+        () =>
+            view === "game" && (
+                <div className="flex flex-col items-center gap-6 w-full max-w-md text-center">
+                    <h1 className="text-3xl font-bold h-10">{message}</h1>
+                    <p className="text-xl">مرحله: {level}</p>
+                    <ColorPads
+                        onPadClick={handlePadClick}
+                        litPad={litPad}
+                        playerTurn={isPlayerTurn}
+                    />
+                </div>
+            ),
+        [view, message, level, handlePadClick, litPad, isPlayerTurn]
+    );
 
-    const leaderboardContent = useMemo(() => view === "board" && (
-        <Leaderboard
-            key={leaderboardKey}
-            API_BASE={API_BASE}
-            finalScore={finalScore}
-            onReplay={() => setView("lobby")}
-            onHome={() => setView("lobby")}
-            userData={userData}
-            eventId={currentGameEventId}
-        />
-    ), [view, leaderboardKey, finalScore, userData, currentGameEventId]);
+    const leaderboardContent = useMemo(
+        () =>
+            view === "board" && (
+                <Leaderboard
+                    key={leaderboardKey}
+                    API_BASE={API_BASE}
+                    finalScore={finalScore}
+                    onReplay={() => setView("lobby")}
+                    onHome={() => setView("lobby")}
+                    userData={userData}
+                    eventId={currentGameEventId}
+                />
+            ),
+        [view, leaderboardKey, finalScore, userData, currentGameEventId]
+    );
 
     return (
         <div className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4 font-[Vazirmatn]">
-             {error && (
+            {error && (
                 <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-md shadow-lg z-50">
                     {error}
                 </div>
             )}
-            
+
             {authContent}
             {lobbyContent}
             {gameContent}
             {leaderboardContent}
-            
+
             <img
                 src={`${process.env.PUBLIC_URL}/teamlogo.png`}
                 alt="Team Logo"
