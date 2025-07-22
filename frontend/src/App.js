@@ -3,11 +3,11 @@ import Leaderboard from "./components/Leaderboard";
 import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
 import DefaultAvatar from "./assets/default-avatar.png";
+import { motion, AnimatePresence } from "framer-motion";
 
 const API_BASE = "https://memory.momis.studio/api"; // یا آدرس بک‌اند شما
 
 function App() {
-    // --- State های مربوط به احراز هویت و نمایش (بدون تغییر) ---
     const [view, setView] = useState("auth"); // auth, lobby, game, board
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
@@ -22,37 +22,30 @@ function App() {
     const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
     const [currentGameEventId, setCurrentGameEventId] = useState(null);
 
-    // --- State های جدید مخصوص بازی حافظه رنگ ---
     const [sequence, setSequence] = useState([]);
     const [playerSequence, setPlayerSequence] = useState([]);
     const [level, setLevel] = useState(0);
     const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-    const [litPad, setLitPad] = useState(null); // کدام پد روشن شود
+    const [litPad, setLitPad] = useState(null);
     const [message, setMessage] = useState("حافظه رنگ‌ها");
     const [finalScore, setFinalScore] = useState(null);
 
-    // --- تابع کمکی برای ایجاد تاخیر ---
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // --- منطق اصلی بازی جدید ---
-
-    // نمایش دنباله رنگ‌ها به کاربر
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
-        setMessage("دقت کن...");
-        await sleep(1000); // تاخیر قبل از شروع نمایش
+        setMessage("Watch Closely...");
+        await sleep(1000);
         for (const color of currentSequence) {
             setLitPad(color);
-            await sleep(400); // مدت زمان روشن ماندن
+            await sleep(400);
             setLitPad(null);
-            await sleep(200); // فاصله بین رنگ‌ها
+            await sleep(200);
         }
         setMessage("Your turn!");
         setIsPlayerTurn(true);
         setPlayerSequence([]);
     }, []);
-
-    // frontend/src/App.js
 
     const nextLevel = useCallback(() => {
         console.log(
@@ -63,19 +56,15 @@ function App() {
         const colors = ["green", "red", "yellow", "blue"];
         const nextColor = colors[Math.floor(Math.random() * colors.length)];
 
-        // --- تغییر اصلی اینجاست ---
-        // ما به React می‌گوییم که با آخرین مقدار قبلی کار کند
         setSequence((prevSequence) => {
             const newSequence = [...prevSequence, nextColor];
-            playSequence(newSequence); // playSequence را به اینجا منتقل می‌کنیم
+            playSequence(newSequence);
             return newSequence;
         });
 
         setLevel((prevLevel) => prevLevel + 1);
-        // --- پایان تغییر ---
-    }, [playSequence]); // <-- وابستگی sequence حذف شد چون دیگر لازم نیست
+    }, [playSequence]);
 
-    // تابع پایان بازی و ذخیره امتیاز
     const handleGameOver = useCallback(
         async (score) => {
             console.log(
@@ -87,10 +76,8 @@ function App() {
             setFinalScore(score);
             setIsPlayerTurn(false);
 
-            // ارسال امتیاز به بک‌اند (فقط اگر امتیازی کسب شده باشد)
             if (score > 0 && token) {
                 try {
-                    // این اندپوینت را بعداً در بک‌اند خواهیم ساخت
                     await fetch(`${API_BASE}/gameOver`, {
                         method: "POST",
                         headers: {
@@ -104,11 +91,10 @@ function App() {
                     });
                 } catch (err) {
                     console.error("Failed to save score:", err);
-                    setError("خطا در ذخیره امتیاز");
+                    setError("Error in saving the score");
                 }
             }
 
-            // نمایش لیدربورد بعد از چند ثانیه
             setTimeout(() => {
                 setView("board");
                 setLeaderboardKey(Date.now());
@@ -117,7 +103,6 @@ function App() {
         [token, currentGameEventId]
     );
 
-    // مدیریت کلیک کاربر روی پدهای رنگی
     const handlePadClick = useCallback(
         (color) => {
             if (!isPlayerTurn) return;
@@ -125,22 +110,20 @@ function App() {
             const newPlayerSequence = [...playerSequence, color];
             setPlayerSequence(newPlayerSequence);
 
-            setLitPad(color); // روشن کردن پد کلیک شده برای بازخورد
+            setLitPad(color);
             setTimeout(() => setLitPad(null), 200);
 
-            // بررسی اینکه آیا کلیک کاربر درست بوده یا نه
             if (
                 newPlayerSequence[newPlayerSequence.length - 1] !==
                 sequence[newPlayerSequence.length - 1]
             ) {
-                handleGameOver(level - 1); // کاربر باخته است، امتیاز مرحله قبل ثبت می‌شود
+                handleGameOver(level - 1);
                 return;
             }
 
-            // اگر کاربر دنباله را کامل و درست وارد کرد
             if (newPlayerSequence.length === sequence.length) {
                 setIsPlayerTurn(false);
-                setTimeout(nextLevel, 1000); // رفتن به مرحله بعد با کمی تاخیر
+                setTimeout(nextLevel, 500);
             }
         },
         [
@@ -162,17 +145,14 @@ function App() {
 
             setCurrentGameEventId(eventId);
 
-            // --- این خطوط باید اضافه شوند تا بازی ریست شود ---
             setSequence([]);
             setPlayerSequence([]);
             setLevel(0);
             setFinalScore(null);
-            // --- پایان بخش اضافه شده ---
 
             setView("game");
             setMessage("Ready?");
 
-            // شروع مرحله اول با تاخیر
             setTimeout(() => {
                 console.log(
                     `%c[startGame -> setTimeout] Calling nextLevel(). State SHOULD BE reset now.`,
@@ -183,15 +163,13 @@ function App() {
             }, 1500);
         },
         [nextLevel]
-    ); // وابستگی‌ها صحیح است و نیازی به تغییر ندارد
-    // --- توابع احراز هویت و کمکی (تقریبا بدون تغییر) ---
+    );
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
         setError(null);
         try {
             const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
-                // برای تست در مرورگر معمولی
                 console.warn("Running in non-Telegram environment.");
                 setIsAuthenticated(true);
                 setView("lobby");
@@ -249,24 +227,22 @@ function App() {
         } else {
             authenticateUser();
         }
-    }, []); // فقط یکبار در اولین رندر اجرا شود
+    }, []);
 
-    // --- مدیریت نمایش کامپوننت‌ها (Render Logic) ---
     const authContent = useMemo(
         () =>
             view === "auth" && (
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold">
-                        Welcome to color memory game{" "}
-                    </h2>
-                    {authLoading ? (
-                        <p>authenticating...</p>
-                    ) : (
-                        <button onClick={authenticateUser}>Authenticate</button>
-                    )}
+                <div className="flex flex-col items-center justify-center text-center h-screen">
+                    <h1 className="text-4xl font-bold mb-4 animate-pulse">
+                        Color Memory
+                    </h1>
+                    <p className="text-lg text-gray-400">
+                        Loading your profile...
+                    </p>
+                    {error && <p className="text-red-400 mt-4">{error}</p>}
                 </div>
             ),
-        [view, authLoading, authenticateUser]
+        [view, error]
     );
 
     const lobbyContent = useMemo(
@@ -321,11 +297,21 @@ function App() {
                     {error}
                 </div>
             )}
-
-            {authContent}
-            {lobbyContent}
-            {gameContent}
-            {leaderboardContent}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={view} // کلید انیمیشن، نام view فعلی است
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="w-full flex flex-col items-center justify-center"
+                >
+                    {view === "auth" && authContent}
+                    {view === "lobby" && lobbyContent}
+                    {view === "game" && gameContent}
+                    {view === "board" && leaderboardContent}
+                </motion.div>
+            </AnimatePresence>
 
             <img
                 src={`${process.env.PUBLIC_URL}/teamlogo.png`}

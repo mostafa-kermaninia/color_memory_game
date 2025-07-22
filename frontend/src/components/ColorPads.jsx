@@ -9,34 +9,31 @@ const padColors = {
 };
 
 const padVariants = {
-    initial: { scale: 1, opacity: 0.7 },
+    initial: { scale: 1, opacity: 0.8, filter: "brightness(0.8)" },
     lit: {
-        scale: [1, 1.1, 1],
+        scale: [1, 1.05, 1], // انیمیشن ضربان‌دار
         opacity: 1,
-        boxShadow: "0px 0px 30px rgba(255, 255, 255, 0.7)",
-        transition: { duration: 0.3 },
-    },
-    disabled: {
-        opacity: 0.4,
-        cursor: "not-allowed",
+        filter: "brightness(1.5)",
+        boxShadow: "0px 0px 25px currentColor",
+        transition: { duration: 0.3, ease: "easeInOut" },
     },
 };
 
 export default function ColorPads({ onPadClick, litPad, playerTurn }) {
     return (
-        <div className="grid grid-cols-2 gap-4 w-full max-w-xs aspect-square mx-auto">
+        <div className="grid grid-cols-2 gap-5 w-full max-w-xs aspect-square mx-auto">
             {Object.keys(padColors).map((color) => (
                 <motion.div
                     key={color}
                     variants={padVariants}
                     animate={litPad === color ? "lit" : "initial"}
-                    whileTap={playerTurn ? { scale: 0.95 } : {}}
+                    whileTap={playerTurn ? { scale: 0.95, filter: "brightness(1.2)" } : {}}
                     onClick={() => playerTurn && onPadClick(color)}
-                    className={`rounded-2xl cursor-pointer ${padColors[color]} ${
+                    className={`rounded-3xl cursor-pointer ${padColors[color]} ${
                         !playerTurn ? "pointer-events-none" : ""
                     }`}
                     style={{
-                        filter: !playerTurn ? "brightness(0.6)" : "brightness(1)",
+                        transition: "filter 0.2s",
                     }}
                 />
             ))}
