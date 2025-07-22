@@ -8,6 +8,14 @@ const env = process.env.NODE_ENV || 'development';
 const config = require(__dirname + '/../../config/config.json')[env]; // مسیر صحیح به فایل کانفیگ
 const db = {};
 
+
+// --- لاگ تشخیصی شماره ۲ ---
+console.log("✅ models/index.js is executing.");
+console.log("Attempting to read DB_URL from process.env...");
+console.log("Value of DB_URL is:", process.env.DB_URL);
+// ---
+
+
 let sequelize;
 if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);

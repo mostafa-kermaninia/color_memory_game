@@ -1,3 +1,6 @@
+console.log("✅ Server.js file is starting to execute...");
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -45,15 +48,6 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// ====================================================================
-// --- API Routes ---
-// ====================================================================
-
-/**
- * @route POST /api/telegram-auth
- * @desc احراز هویت کاربر تلگرام و ایجاد/به‌روزرسانی کاربر در دیتابیس
- * این بخش بدون تغییر باقی می‌ماند.
- */
 app.post("/api/telegram-auth", async (req, res) => {
     // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
     logger.info(`Auth request received from origin: ${req.headers.origin}`);
