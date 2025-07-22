@@ -98,7 +98,7 @@ function App() {
             setTimeout(() => {
                 setView("board");
                 setLeaderboardKey(Date.now());
-            }, 2000);
+            }, 500);
         },
         [token, currentGameEventId]
     );
@@ -229,22 +229,50 @@ function App() {
         }
     }, []);
 
+    // frontend/src/App.js
+
     const authContent = useMemo(
         () =>
             view === "auth" && (
-                <div className="flex flex-col items-center justify-center text-center h-screen">
-                    <h1 className="text-4xl font-bold mb-4 animate-pulse">
+                <div className="flex flex-col items-center justify-center text-center h-screen px-4">
+                    <motion.h1
+                        className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500"
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                    >
                         Color Memory
-                    </h1>
-                    <p className="text-lg text-gray-400">
-                        Loading your profile...
-                    </p>
+                    </motion.h1>
+                    <motion.p
+                        className="text-lg text-gray-300 mb-8"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                        Ready to challenge your mind?
+                    </motion.p>
+
+                    {authLoading ? (
+                        <p className="text-lg text-gray-400 animate-pulse">
+                            Connecting...
+                        </p>
+                    ) : (
+                        <motion.button
+                            onClick={authenticateUser}
+                            className="px-8 py-3 bg-blue-600 text-white rounded-xl text-xl font-bold shadow-lg hover:bg-blue-700 transition-all duration-300"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            Login with Telegram
+                        </motion.button>
+                    )}
+
                     {error && <p className="text-red-400 mt-4">{error}</p>}
                 </div>
             ),
-        [view, error]
+        [view, authLoading, error, authenticateUser]
     );
-
+    
     const lobbyContent = useMemo(
         () =>
             view === "lobby" && (
