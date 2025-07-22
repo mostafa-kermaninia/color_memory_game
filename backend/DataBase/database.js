@@ -1,25 +1,25 @@
-// Import Sequelize library
 const { Sequelize } = require('sequelize');
+require('dotenv').config(); // متغیرها را از .env می‌خواند
 
-// Database connection configuration
-const sequelize = new Sequelize(
-    'momisdb',
-    'momis_user', // نام کاربری اپلیکیشن
-    '76304333(Mk)', // رمز عبور اپلیکیشن
-    {
-        host: 'localhost',
-        dialect: 'mysql',
-        logging: false,
-    }
-);
-// Test the database connection
+// بررسی وجود DB_URL
+if (!process.env.DB_URL) {
+  throw new Error('DB_URL is not defined in the .env file');
+}
+
+// ساخت یک نمونه از Sequelize با استفاده از DB_URL
+const sequelize = new Sequelize(process.env.DB_URL, {
+  dialect: 'mysql',
+  logging: false, // لاگ کردن کوئری‌ها را غیرفعال می‌کند
+});
+
+// تست اتصال به دیتابیس
 sequelize.authenticate()
-    .then(() => {
-        console.log('Connection to the database has been established successfully.');
-    })
-    .catch((error) => {
-        console.error('Unable to connect to the database:', error);
-    });
+  .then(() => {
+    console.log('✅ Connection to the database has been established successfully.');
+  })
+  .catch((error) => {
+    console.error('❌ Unable to connect to the database:', error);
+  });
 
-// Export the sequelize instance for use in other parts of the application
+// صدور نمونه ساخته شده برای استفاده در فایل‌های دیگر
 module.exports = sequelize;

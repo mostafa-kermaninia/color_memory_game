@@ -1,43 +1,43 @@
-'use strict';
+// ۱. وارد کردن نمونه sequelize از فایل database.js
+const sequelize = require('../database');
 
-const fs = require('fs');
-const path = require('path');
-const Sequelize = require('sequelize');
-const basename = path.basename(__filename);
-const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../../config/config.json')[env]; // مسیر صحیح به فایل کانفیگ
+// ۲. وارد کردن تمام مدل‌ها
+const User = require('./User');
+const Score = require('./Score');
+const Reward = require('./Reward');
+
+// ساخت یک آبجکت برای نگهداری همه چیز
 const db = {};
 
+db.User = User;
+db.Score = Score;
+db.Reward = Reward;
 
-// --- لاگ تشخیصی شماره ۲ ---
-console.log("✅ models/index.js is executing.");
-console.log("Attempting to read DB_URL from process.env...");
-console.log("Value of DB_URL is:", process.env.DB_URL);
-// ---
-
-
-let sequelize;
-if (config.use_env_variable) {
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  sequelize = new Sequelize(config.database, config.username, config.password, config);
-}
-
-fs
-  .readdirSync(__dirname)
-  .filter(file => (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js'))
-  .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model;
-  });
-
-Object.keys(db).forEach(modelName => {
-  if (db[modelName].associate) {
-    db[modelName].associate(db);
-  }
+// ۳. تعریف روابط بین مدل‌ها
+// رابطه یک به چند بین کاربر و امتیاز
+db.User.hasMany(db.Score, {
+  foreignKey: { name: 'userTelegramId', allowNull: false },
+  sourceKey: 'telegramId',
+  as: 'Scores'
+});
+db.Score.belongsTo(db.User, {
+  foreignKey: { name: 'userTelegramId', allowNull: false },
+  targetKey: 'telegramId'
 });
 
-db.sequelize = sequelize;
-db.Sequelize = Sequelize;
+// رابطه یک به چند بین کاربر و جایزه
+db.User.hasMany(db.Reward, {
+  foreignKey: { name: 'userTelegramId', allowNull: false },
+  sourceKey: 'telegramId',
+  as: 'Rewards'
+});
+db.Reward.belongsTo(db.User, {
+  foreignKey: { name: 'userTelegramId', allowNull: false },
+  targetKey: 'telegramId'
+});
 
+// ۴. اضافه کردن نمونه sequelize به آبجکت نهایی
+db.sequelize = sequelize;
+
+// ۵. صدور آبجکت نهایی برای استفاده در سرور
 module.exports = db;
