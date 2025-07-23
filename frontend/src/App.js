@@ -272,7 +272,7 @@ function App() {
             ),
         [view, authLoading, error, authenticateUser]
     );
-    
+
     const lobbyContent = useMemo(
         () =>
             view === "lobby" && (
@@ -309,7 +309,7 @@ function App() {
                     key={leaderboardKey}
                     API_BASE={API_BASE}
                     finalScore={finalScore}
-                    onReplay={() => setView("lobby")}
+                    onReplay={startGame} 
                     onHome={() => setView("lobby")}
                     userData={userData}
                     eventId={currentGameEventId}
