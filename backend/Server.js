@@ -216,8 +216,8 @@ app.get("/api/events", (req, res) => {
     if (process.env.ONTON_EVENT_UUID) {
         activeEvents.push({
             id: process.env.ONTON_EVENT_UUID,
-            name: "تورنومنت اصلی",
-            description: "برای جایزه بزرگ در رویداد اصلی رقابت کنید!",
+            name: "Main Tournament",
+            description: "Compete for the grand prize in the main event!",
         });
     }
     res.json({ status: "success", events: activeEvents });
