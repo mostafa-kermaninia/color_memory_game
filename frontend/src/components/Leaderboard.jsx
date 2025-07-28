@@ -190,7 +190,7 @@ export default function Leaderboard({
 
             <div className="mt-6 space-y-2">
                 <button
-                    onClick={onReplay}
+                    onClick={() => onReplay(eventId)} // <-- تغییر کلیدی اینجاست
                     className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition"
                 >
                     Play Again
