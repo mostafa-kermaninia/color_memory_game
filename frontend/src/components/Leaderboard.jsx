@@ -18,11 +18,19 @@ function PlayerRow({ player, currentUserData }) {
             }`}
         >
             {/* نمایش رتبه واقعی که از بک‌اند دریافت شده */}
-            <span className="w-8 text-center font-bold text-slate-700">{player.rank}</span>
+            <span className="w-8 text-center font-bold text-slate-700">
+                {player.rank}
+            </span>
 
             <div className="flex-1 flex items-center gap-3 ml-4 overflow-hidden">
                 <img
-                    src={player.photo_url ? `/api/avatar?url=${encodeURIComponent(player.photo_url)}` : DefaultAvatar}
+                    src={
+                        player.photo_url
+                            ? `/api/avatar?url=${encodeURIComponent(
+                                  player.photo_url
+                              )}`
+                            : DefaultAvatar
+                    }
                     alt={player.firstName || "Player"}
                     className="w-8 h-8 rounded-full shadow-sm"
                 />
@@ -38,10 +46,19 @@ function PlayerRow({ player, currentUserData }) {
     );
 }
 
-
-export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, userData, eventId }) {
+export default function Leaderboard({
+    API_BASE,
+    onReplay,
+    finalScore,
+    onHome,
+    userData,
+    eventId,
+}) {
     // استیت برای نگهداری ۵ نفر برتر و اطلاعات کاربر فعلی
-    const [leaderboard, setLeaderboard] = useState({ top: [], currentUser: null });
+    const [leaderboard, setLeaderboard] = useState({
+        top: [],
+        currentUser: null,
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -59,12 +76,12 @@ export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, us
 
             try {
                 // آدرس API به درستی eventId را مدیریت می‌کند
-                let url = `${API_BASE}/leaderboard?eventId=${eventId || ''}`;
+                let url = `${API_BASE}/leaderboard?eventId=${eventId || ""}`;
 
                 const res = await fetch(url, {
                     headers: {
                         // **مهم:** ارسال توکن برای احراز هویت
-                        "Authorization": `Bearer ${token}`,
+                        Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                     },
                 });
@@ -74,11 +91,15 @@ export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, us
                 }
 
                 const data = await res.json();
-                if (data.status === 'success') {
+                if (data.status === "success") {
                     // ذخیره ساختار جدید داده‌ها
-                    setLeaderboard(data.leaderboard || { top: [], currentUser: null });
+                    setLeaderboard(
+                        data.leaderboard || { top: [], currentUser: null }
+                    );
                 } else {
-                    throw new Error(data.message || "Failed to parse leaderboard data.");
+                    throw new Error(
+                        data.message || "Failed to parse leaderboard data."
+                    );
                 }
 
                 setError(null);
@@ -95,7 +116,6 @@ export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, us
         // `userData` هم به وابستگی‌ها اضافه شد تا با تغییر کاربر، اطلاعات بروز شود
     }, [API_BASE, eventId, userData]);
 
-
     // بنر امتیاز نهایی کاربر
     const banner = finalScore !== null && (
         <div className="mb-4 text-center text-2xl font-bold text-indigo-700">
@@ -108,13 +128,20 @@ export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, us
         (player) => player.telegramId === leaderboard.currentUser?.telegramId
     );
 
-
     if (loading) {
-        return <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center">Loading...</div>;
+        return (
+            <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center">
+                Loading...
+            </div>
+        );
     }
 
     if (error) {
-        return <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center text-red-500">{error}</div>;
+        return (
+            <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center text-red-500">
+                {error}
+            </div>
+        );
     }
 
     return (
@@ -135,17 +162,28 @@ export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, us
                 {/* نمایش لیست ۵ نفر برتر */}
                 {leaderboard.top.length > 0 ? (
                     leaderboard.top.map((player) => (
-                        <PlayerRow key={player.telegramId} player={player} currentUserData={userData} />
+                        <PlayerRow
+                            key={player.telegramId}
+                            player={player}
+                            currentUserData={userData}
+                        />
                     ))
                 ) : (
-                    <li className="text-center py-4 text-gray-500">No scores yet. Be the first!</li>
+                    <li className="text-center py-4 text-gray-500">
+                        No scores yet. Be the first!
+                    </li>
                 )}
 
                 {/* اگر کاربر فعلی در ۵ نفر اول نبود، رتبه‌اش را جداگانه نمایش بده */}
                 {!isCurrentUserInTopList && leaderboard.currentUser && (
                     <>
-                        <li className="text-center text-gray-400 my-2 font-bold">...</li>
-                        <PlayerRow player={leaderboard.currentUser} currentUserData={userData} />
+                        <li className="text-center text-gray-400 my-2 font-bold">
+                            ...
+                        </li>
+                        <PlayerRow
+                            player={leaderboard.currentUser}
+                            currentUserData={userData}
+                        />
                     </>
                 )}
             </ul>
