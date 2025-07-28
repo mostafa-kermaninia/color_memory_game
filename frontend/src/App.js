@@ -309,7 +309,7 @@ function App() {
                     key={leaderboardKey}
                     API_BASE={API_BASE}
                     finalScore={finalScore}
-                    onReplay={ startGame(currentGameEventId)} 
+                    onReplay={ startGame} 
                     onHome={() => setView("lobby")}
                     userData={userData}
                     eventId={currentGameEventId}
