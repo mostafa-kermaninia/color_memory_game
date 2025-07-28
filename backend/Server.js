@@ -1,169 +1,298 @@
-import { useEffect, useState } from "react";
-import DefaultAvatar from "../assets/default-avatar.png";
+console.log("✅ Server.js file is starting to execute...");
+require("dotenv").config();
 
-// کامپوننت جداگانه برای خوانایی بهتر و نمایش هر سطر از لیدربورد
-function PlayerRow({ player, currentUserData }) {
-    // اگر اطلاعات بازیکن وجود نداشت، چیزی نمایش نده
-    if (!player || !player.telegramId) return null;
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const jwt = require("jsonwebtoken");
+const fetch = require("node-fetch");
+const logger = require("./logger");
+const validateTelegramData = require("./telegramAuth").default;
+const { User, Score, sequelize } = require("./DataBase/models");
 
-    // چک می‌کنیم که آیا این سطر مربوط به کاربر فعلی است یا نه
-    const isCurrentUser = player.telegramId === currentUserData?.id;
+const app = express();
+app.use(express.json());
 
-    return (
-        <li
-            className={`flex items-center justify-between py-2 px-3 rounded-xl my-1 transition-all duration-300 ${
-                isCurrentUser
-                    ? "bg-indigo-200 ring-2 ring-indigo-400 scale-105" // استایل ویژه برای کاربر فعلی
-                    : "bg-white/60"
-            }`}
-        >
-            {/* نمایش رتبه واقعی که از بک‌اند دریافت شده */}
-            <span className="w-8 text-center font-bold text-slate-700">{player.rank}</span>
+// --- پیکربندی CORS (بدون تغییر) ---
+const allowedOrigins = [
+    "https://momis.studio",
+    "https://www.momis.studio",
+    "https://web.telegram.org",
+    "https://memory.momis.studio", // <-- این خط اضافه شود
+];
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true,
+};
+app.use(cors(corsOptions));
 
-            <div className="flex-1 flex items-center gap-3 ml-4 overflow-hidden">
-                <img
-                    src={player.photo_url ? `/api/avatar?url=${encodeURIComponent(player.photo_url)}` : DefaultAvatar}
-                    alt={player.firstName || "Player"}
-                    className="w-8 h-8 rounded-full shadow-sm"
-                />
-                <span className="truncate font-medium text-slate-800">
-                    {player.firstName || player.username || "Anonymous"}
-                </span>
-            </div>
+// --- Middleware برای احراز هویت توکن (بدون تغییر) ---
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    if (!token)
+        return res
+            .status(401)
+            .json({ message: "Authentication token required" });
 
-            <span className="w-16 text-right font-bold text-indigo-600">
-                {player.score}
-            </span>
-        </li>
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            logger.warn(`JWT verification failed: ${err.message}`);
+            return res
+                .status(403)
+                .json({ message: "Invalid or expired token" });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+app.post("/api/telegram-auth", async (req, res) => {
+    // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
+    logger.info(`Auth request received from origin: ${req.headers.origin}`);
+    logger.info("Request body:", JSON.stringify(req.body, null, 2));
+    // --- پایان لاگ تشخیصی ---
+
+    try {
+        const { initData } = req.body;
+        if (!initData)
+            return res
+                .status(400)
+                .json({ valid: false, message: "initData is required" });
+
+        const userData = validateTelegramData(initData);
+
+        const [user, created] = await User.findOrCreate({
+            where: { telegramId: userData.id },
+            defaults: {
+                firstName: userData.first_name,
+                lastName: userData.last_name || "",
+                username: userData.username || "",
+                photo_url: userData.photo_url || null,
+            },
+        });
+
+        // اگر کاربر از قبل وجود داشت، اطلاعاتش را آپدیت می‌کنیم
+        if (!created) {
+            user.firstName = userData.first_name;
+            user.lastName = userData.last_name || "";
+            user.username = userData.username || "";
+            user.photo_url = userData.photo_url || null;
+            await user.save();
+        }
+
+        const token = jwt.sign(
+            { userId: userData.id, ...userData },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        );
+
+        logger.info(`Auth successful for user: ${userData.id}`);
+        res.json({ valid: true, user: userData, token });
+    } catch (error) {
+        logger.error(`Telegram auth error: ${error.message}`);
+        res.status(401).json({
+            valid: false,
+            message: "Authentication failed",
+        });
+    }
+});
+
+app.post("/api/gameOver", authenticateToken, async (req, res) => {
+    const { score, eventId } = req.body;
+    const userId = req.user.userId;
+
+    logger.info(
+        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
+            eventId || "Free Play"
+        }`
     );
-}
 
+    // اعتبار سنجی امتیاز
+    if (typeof score !== "number" || score < 0) {
+        logger.warn(`Invalid score received for user ${userId}: ${score}`);
+        return res
+            .status(400)
+            .json({ status: "error", message: "Invalid score." });
+    }
 
-export default function Leaderboard({ API_BASE, onReplay, finalScore, onHome, userData, eventId }) {
-    // استیت برای نگهداری ۵ نفر برتر و اطلاعات کاربر فعلی
-    const [leaderboard, setLeaderboard] = useState({ top: [], currentUser: null });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    try {
+        await Score.create({
+            score: score,
+            userTelegramId: userId,
+            // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
+            eventId: eventId || null,
+        });
 
-    useEffect(() => {
-        const fetchLeaderboard = async () => {
-            setLoading(true);
-            const token = localStorage.getItem("jwtToken"); // گرفتن توکن از حافظه محلی
+        logger.info(
+            `Score ${score} saved for user ${userId} in event ${
+                eventId || "Free Play"
+            }`
+        );
+        res.status(201).json({
+            status: "success",
+            message: "Score saved successfully.",
+        });
+    } catch (error) {
+        logger.error(
+            `Failed to save score for user ${userId}: ${error.message}`
+        );
+        res.status(500).json({
+            status: "error",
+            message: "Could not save score due to a server error.",
+        });
+    }
+});
 
-            // اگر توکن وجود نداشت، عملیات را متوقف کن
-            if (!token) {
-                setError("Authentication failed. Please restart the app.");
-                setLoading(false);
-                return;
+app.get("/api/leaderboard", authenticateToken, async (req, res) => {
+    try {
+        // شناسه‌ی کاربر فعلی از توکن گرفته می‌شود
+        const currentUserTelegramId = req.user.userId;
+        const { eventId } = req.query;
+
+        // ساخت شرط فیلتر، دقیقا مانند کد اصلی شما
+        const whereCondition = {};
+        if (eventId && eventId !== "null" && eventId !== "undefined") {
+            whereCondition.eventId = eventId;
+        } else {
+            whereCondition.eventId = null;
+        }
+        logger.info(`Fetching leaderboard for user ${currentUserTelegramId} with condition:`, whereCondition);
+
+        // مرحله ۱: بهترین امتیاز *تمام* کاربران را بر اساس شرط پیدا می‌کنیم (بدون limit)
+        const allScores = await Score.findAll({
+            where: whereCondition,
+            attributes: [
+                "userTelegramId",
+                [sequelize.fn("MAX", sequelize.col("score")), "max_score"],
+            ],
+            group: ["userTelegramId"],
+            order: [[sequelize.col("max_score"), "DESC"]], // مرتب‌سازی بر اساس بیشترین امتیاز
+            raw: true,
+        });
+
+        // مرحله ۲: رتبه‌بندی را در سرور محاسبه می‌کنیم
+        let rank = 0;
+        let lastScore = Infinity;
+        const allRanks = allScores.map((entry, index) => {
+            if (entry.max_score < lastScore) {
+                rank = index + 1; // رتبه برابر با جایگاه در آرایه مرتب‌شده است
+                lastScore = entry.max_score;
             }
+            return {
+                userTelegramId: entry.userTelegramId,
+                score: entry.max_score,
+                rank: rank, // اضافه کردن رتبه به هر بازیکن
+            };
+        });
 
-            try {
-                // آدرس API به درستی eventId را مدیریت می‌کند
-                let url = `${API_BASE}/leaderboard?eventId=${eventId || ''}`;
+        // مرحله ۳: ۵ نفر برتر و کاربر فعلی را از لیست رتبه‌بندی شده جدا می‌کنیم
+        const top5Players = allRanks.slice(0, 5);
+        const currentUserData = allRanks.find(
+            (p) => p.userTelegramId == currentUserTelegramId
+        );
 
-                const res = await fetch(url, {
-                    headers: {
-                        // **مهم:** ارسال توکن برای احراز هویت
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                });
+        // مرحله ۴: اطلاعات کامل (نام، عکس و...) را برای کاربران مورد نیاز می‌گیریم
+        const userIdsToFetch = [
+            ...new Set([ // با Set از ارسال ID تکراری جلوگیری می‌کنیم
+                ...top5Players.map((p) => p.userTelegramId),
+                ...(currentUserData ? [currentUserData.userTelegramId] : []), // اگر کاربر فعلی رکوردی داشت، ID او را هم اضافه کن
+            ]),
+        ];
+        
+        const users = await User.findAll({
+            where: { telegramId: userIdsToFetch },
+            raw: true,
+        });
 
-                if (!res.ok) {
-                    throw new Error(`HTTP error! Status: ${res.status}`);
-                }
+        const userMap = users.reduce((map, user) => {
+            map[user.telegramId] = user;
+            return map;
+        }, {});
 
-                const data = await res.json();
-                if (data.status === 'success') {
-                    // ذخیره ساختار جدید داده‌ها
-                    setLeaderboard(data.leaderboard || { top: [], currentUser: null });
-                } else {
-                    throw new Error(data.message || "Failed to parse leaderboard data.");
-                }
-
-                setError(null);
-            } catch (e) {
-                console.error("Fetch leaderboard error:", e);
-                setError("Failed to load leaderboard.");
-                setLeaderboard({ top: [], currentUser: null });
-            } finally {
-                setLoading(false);
-            }
+        // تابع کمکی برای ترکیب اطلاعات کاربر با رتبه و امتیاز
+        const formatPlayer = (playerData) => {
+            if (!playerData) return null;
+            const userProfile = userMap[playerData.userTelegramId];
+            return {
+                telegramId: userProfile?.telegramId,
+                username: userProfile?.username,
+                firstName: userProfile?.firstName,
+                photo_url: userProfile?.photo_url,
+                score: playerData.score,
+                rank: playerData.rank,
+            };
         };
+        
+        // مرحله ۵: ساخت آبجکت نهایی برای ارسال به فرانت‌اند
+        res.json({
+            status: "success",
+            leaderboard: {
+                top: top5Players.map(formatPlayer), // لیست ۵ نفر برتر
+                currentUser: formatPlayer(currentUserData), // اطلاعات کاربر فعلی
+            },
+        });
 
-        fetchLeaderboard();
-        // `userData` هم به وابستگی‌ها اضافه شد تا با تغییر کاربر، اطلاعات بروز شود
-    }, [API_BASE, eventId, userData]);
-
-
-    // بنر امتیاز نهایی کاربر
-    const banner = finalScore !== null && (
-        <div className="mb-4 text-center text-2xl font-bold text-indigo-700">
-            Game Over! Your Score: {finalScore}
-        </div>
-    );
-
-    // چک می‌کنیم آیا کاربر فعلی در لیست ۵ نفر برتر هست یا خیر
-    const isCurrentUserInTopList = leaderboard.top.some(
-        (player) => player.telegramId === leaderboard.currentUser?.telegramId
-    );
-
-
-    if (loading) {
-        return <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center">Loading...</div>;
+    } catch (e) {
+        logger.error(`Leaderboard error: ${e.message}`, { stack: e.stack });
+        res.status(500).json({
+            status: "error",
+            message: "Internal server error",
+        });
     }
+});
 
-    if (error) {
-        return <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-center text-red-500">{error}</div>;
+
+
+app.get("/api/events", (req, res) => {
+    const activeEvents = [];
+    if (process.env.ONTON_EVENT_UUID) {
+        activeEvents.push({
+            id: process.env.ONTON_EVENT_UUID,
+            name: "Main Tournament",
+            description: "Compete for the grand prize in the main event!",
+        });
     }
+    res.json({ status: "success", events: activeEvents });
+});
 
-    return (
-        <div className="w-full max-w-md mx-auto bg-white/80 backdrop-blur p-6 rounded-3xl shadow-xl text-slate-800">
-            {banner}
-            <h2 className="text-3xl font-bold text-center text-indigo-700 mb-4">
-                {eventId ? "Event Leaderboard" : "Free Mode LeaderBoard"}
-            </h2>
+/**
+ * @route GET /api/avatar
+ * @desc پراکسی برای تصاویر آواتار (بدون تغییر)
+ */
+app.get("/api/avatar", async (req, res) => {
+    try {
+        const externalUrl = req.query.url;
+        if (!externalUrl || !externalUrl.startsWith("https://t.me/")) {
+            return res.status(400).send("Invalid URL");
+        }
+        const response = await fetch(externalUrl);
+        if (!response.ok) throw new Error("Failed to fetch image");
 
-            <ul>
-                {/* هدر جدول */}
-                <li className="flex items-center justify-between py-2 px-3 font-semibold text-slate-600 mb-1">
-                    <span className="w-8 text-center">#</span>
-                    <span className="flex-1 text-left ml-4">Player</span>
-                    <span className="w-16 text-right">Score</span>
-                </li>
+        res.setHeader("Content-Type", response.headers.get("content-type"));
+        res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+        response.body.pipe(res);
+    } catch (error) {
+        logger.error(`Avatar proxy error: ${error.message}`);
+        res.status(404).json({ message: "Avatar not found" });
+    }
+});
 
-                {/* نمایش لیست ۵ نفر برتر */}
-                {leaderboard.top.length > 0 ? (
-                    leaderboard.top.map((player) => (
-                        <PlayerRow key={player.telegramId} player={player} currentUserData={userData} />
-                    ))
-                ) : (
-                    <li className="text-center py-4 text-gray-500">No scores yet. Be the first!</li>
-                )}
+// --- سرو کردن فایل‌های استاتیک فرانت‌اند و مدیریت روت‌های دیگر (بدون تغییر) ---
+app.use(express.static(path.join(__dirname, "../frontend/build")));
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+});
 
-                {/* اگر کاربر فعلی در ۵ نفر اول نبود، رتبه‌اش را جداگانه نمایش بده */}
-                {!isCurrentUserInTopList && leaderboard.currentUser && (
-                    <>
-                        <li className="text-center text-gray-400 my-2 font-bold">...</li>
-                        <PlayerRow player={leaderboard.currentUser} currentUserData={userData} />
-                    </>
-                )}
-            </ul>
-
-            <div className="mt-6 space-y-2">
-                <button
-                    onClick={onReplay}
-                    className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-semibold hover:bg-indigo-700 transition"
-                >
-                    Play Again
-                </button>
-                <button
-                    onClick={onHome}
-                    className="w-full py-2 bg-gray-200 text-gray-700 rounded-2xl font-semibold hover:bg-gray-300 transition"
-                >
-                    Back to Lobby
-                </button>
-            </div>
-        </div>
-    );
-}
+// --- راه‌اندازی سرور ---
+const PORT = process.env.PORT || 10001;
+app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
+});
