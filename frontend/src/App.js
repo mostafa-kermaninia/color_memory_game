@@ -137,33 +137,76 @@ function App() {
     );
 
     const startGame = useCallback(
-        (eventId) => {
-            console.log(
-                `%c[startGame] STARTING NEW GAME. State BEFORE reset: level=${level}, sequence length=${sequence.length}`,
-                "color: #00FF7F; font-weight: bold;"
-            );
+        async (eventId) => {
+            setCurrentGameEventId(eventId); // شناسه رویداد این دور از بازی را به خاطر بسپار
 
-            setCurrentGameEventId(eventId);
+            // It now takes eventId as an argument
+            if (!isAuthenticated || !token) {
+                setError("Please authenticate first");
+                setView("auth");
+                return;
+            }
 
-            setSequence([]);
-            setPlayerSequence([]);
-            setLevel(0);
-            setFinalScore(null);
+            try {
+                setLoading(true);
+                setError(null);
+                setGameActive(true);
 
-            setView("game");
-            setMessage("Ready?");
+                const abortController = new AbortController();
+                abortControllerRef.current = abortController;
 
-            setTimeout(() => {
-                console.log(
-                    `%c[startGame -> setTimeout] Calling nextLevel(). State SHOULD BE reset now.`,
-                    "color: #1E90FF;"
+                const response = await fetch(`${API_BASE}/start`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    // Send the eventId (which can be null) in the request body
+                    body: JSON.stringify({ eventId }),
+                    signal: abortController.signal,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(
+                        errorData.message ||
+                            `Request failed with status ${response.status}`
+                    );
+                }
+
+                const data = await response.json();
+
+                if (!data || data.status !== "success") {
+                    throw new Error(data?.message || "Invalid server response");
+                }
+
+                setProblem(data.problem);
+                startLocalTimer(data.time_left ?? ROUND_TIME);
+                setScore(data.score ?? 0);
+                setView("game"); // Set the view to 'game' to start playing
+            } catch (err) {
+                if (err.name === "AbortError") {
+                    console.log("Request was aborted");
+                    return;
+                }
+
+                console.error("Game start error:", err);
+                setError(
+                    err.message.includes("Failed to fetch")
+                        ? "Could not connect to server. Please check your connection."
+                        : err.message
                 );
-
-                nextLevel();
-            }, 1500);
+                setGameActive(false);
+                setView("lobby"); // On error, go back to the lobby, not 'home'
+            } finally {
+                if (!abortControllerRef.current?.signal.aborted) {
+                    setLoading(false);
+                }
+            }
         },
-        [nextLevel]
+        [startLocalTimer, isAuthenticated, token]
     );
+    
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
         setError(null);
@@ -309,7 +352,7 @@ function App() {
                     key={leaderboardKey}
                     API_BASE={API_BASE}
                     finalScore={finalScore}
-                    onReplay={startGame} 
+                    onReplay={ startGame(currentGameEventId)} 
                     onHome={() => setView("lobby")}
                     userData={userData}
                     eventId={currentGameEventId}
