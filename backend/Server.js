@@ -150,56 +150,97 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
     }
 });
 
-/**
- * @route GET /api/leaderboard
- * @desc دریافت جدول رده‌بندی بر اساس امتیازات.
- * این بخش بدون تغییر باقی می‌ماند چون از قبل به درستی کار می‌کرد.
- */
-app.get("/api/leaderboard", async (req, res) => {
+app.get("/api/leaderboard", authenticateToken, async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit) || 10;
+        // شناسه‌ی کاربر فعلی از توکن گرفته می‌شود
+        const currentUserTelegramId = req.user.userId;
         const { eventId } = req.query;
 
-        const whereCondition = {
-            eventId: eventId && eventId !== "null" ? eventId : null,
-        };
+        // ساخت شرط فیلتر، دقیقا مانند کد اصلی شما
+        const whereCondition = {};
+        if (eventId && eventId !== "null" && eventId !== "undefined") {
+            whereCondition.eventId = eventId;
+        } else {
+            whereCondition.eventId = null;
+        }
+        logger.info(`Fetching leaderboard for user ${currentUserTelegramId} with condition:`, whereCondition);
 
-        const topScores = await Score.findAll({
+        // مرحله ۱: بهترین امتیاز *تمام* کاربران را بر اساس شرط پیدا می‌کنیم (بدون limit)
+        const allScores = await Score.findAll({
             where: whereCondition,
             attributes: [
                 "userTelegramId",
                 [sequelize.fn("MAX", sequelize.col("score")), "max_score"],
             ],
             group: ["userTelegramId"],
-            order: [[sequelize.fn("MAX", sequelize.col("score")), "DESC"]],
-            limit: limit,
-            include: [
-                {
-                    model: User,
-                    as: "user",
-                    attributes: [
-                        "telegramId",
-                        "username",
-                        "firstName",
-                        "photo_url",
-                    ],
-                },
-            ], // <--- تغییر اینجاست
+            order: [[sequelize.col("max_score"), "DESC"]], // مرتب‌سازی بر اساس بیشترین امتیاز
+            raw: true,
         });
 
-        const leaderboard = topScores
-            .filter((entry) => entry.user) // <-- این خط اضافه شده: فقط امتیازاتی که کاربر معتبر دارند را نگه می‌دارد
-            .map((entry) => ({
-                telegramId: entry.user.telegramId,
-                username: entry.user.username,
-                firstName: entry.user.firstName,
-                photo_url: entry.user.photo_url,
-                score: entry.get("max_score"),
-            }));
+        // مرحله ۲: رتبه‌بندی را در سرور محاسبه می‌کنیم
+        let rank = 0;
+        let lastScore = Infinity;
+        const allRanks = allScores.map((entry, index) => {
+            if (entry.max_score < lastScore) {
+                rank = index + 1; // رتبه برابر با جایگاه در آرایه مرتب‌شده است
+                lastScore = entry.max_score;
+            }
+            return {
+                userTelegramId: entry.userTelegramId,
+                score: entry.max_score,
+                rank: rank, // اضافه کردن رتبه به هر بازیکن
+            };
+        });
 
-        res.json({ status: "success", leaderboard });
+        // مرحله ۳: ۵ نفر برتر و کاربر فعلی را از لیست رتبه‌بندی شده جدا می‌کنیم
+        const top5Players = allRanks.slice(0, 5);
+        const currentUserData = allRanks.find(
+            (p) => p.userTelegramId == currentUserTelegramId
+        );
+
+        // مرحله ۴: اطلاعات کامل (نام، عکس و...) را برای کاربران مورد نیاز می‌گیریم
+        const userIdsToFetch = [
+            ...new Set([ // با Set از ارسال ID تکراری جلوگیری می‌کنیم
+                ...top5Players.map((p) => p.userTelegramId),
+                ...(currentUserData ? [currentUserData.userTelegramId] : []), // اگر کاربر فعلی رکوردی داشت، ID او را هم اضافه کن
+            ]),
+        ];
+        
+        const users = await User.findAll({
+            where: { telegramId: userIdsToFetch },
+            raw: true,
+        });
+
+        const userMap = users.reduce((map, user) => {
+            map[user.telegramId] = user;
+            return map;
+        }, {});
+
+        // تابع کمکی برای ترکیب اطلاعات کاربر با رتبه و امتیاز
+        const formatPlayer = (playerData) => {
+            if (!playerData) return null;
+            const userProfile = userMap[playerData.userTelegramId];
+            return {
+                telegramId: userProfile?.telegramId,
+                username: userProfile?.username,
+                firstName: userProfile?.firstName,
+                photo_url: userProfile?.photo_url,
+                score: playerData.score,
+                rank: playerData.rank,
+            };
+        };
+        
+        // مرحله ۵: ساخت آبجکت نهایی برای ارسال به فرانت‌اند
+        res.json({
+            status: "success",
+            leaderboard: {
+                top: top5Players.map(formatPlayer), // لیست ۵ نفر برتر
+                currentUser: formatPlayer(currentUserData), // اطلاعات کاربر فعلی
+            },
+        });
+
     } catch (e) {
-        logger.error(`Leaderboard error: ${e.message}`);
+        logger.error(`Leaderboard error: ${e.message}`, { stack: e.stack });
         res.status(500).json({
             status: "error",
             message: "Internal server error",
@@ -207,10 +248,8 @@ app.get("/api/leaderboard", async (req, res) => {
     }
 });
 
-/**
- * @route GET /api/events
- * @desc دریافت لیست رویدادهای فعال (بدون تغییر)
- */
+
+
 app.get("/api/events", (req, res) => {
     const activeEvents = [];
     if (process.env.ONTON_EVENT_UUID) {
