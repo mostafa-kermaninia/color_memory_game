@@ -1,6 +1,6 @@
-import { validate } from "@tma.js/init-data-node";
+const { validate } = require("@telegram-apps/init-data-node"); // <-- از این پکیج جدید استفاده کنید
 
-export default function validateTelegramData(rawInitData) {
+ function validateTelegramData(rawInitData) {
   try {
     // اعتبارسنجی داده‌ها
     validate(rawInitData, process.env.BOT_TOKEN);
@@ -35,3 +35,5 @@ export default function validateTelegramData(rawInitData) {
     throw new Error('Authentication failed: ' + error.message);
   }
 }
+
+module.exports = validateTelegramData; // <-- به این صورت اکسپورت کنید
