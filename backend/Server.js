@@ -7,7 +7,7 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const fetch = require("node-fetch");
 const logger = require("./logger");
-const validateTelegramData = require("./telegramAuth").default;
+const validateTelegramData = require("./telegramAuth");
 const { User, Score, sequelize } = require("./DataBase/models");
 
 const app = express();
