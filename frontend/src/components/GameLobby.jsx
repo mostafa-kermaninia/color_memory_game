@@ -102,7 +102,6 @@ const GameLobby = ({ onGameStart, userData, onLogout, onImageError }) => {
                 </button>
             </div>
 
-            {/* This block intelligently decides what to show based on the events array */}
             {events.length > 0 ? (
                 // If there ARE active events, show them
                 <>
