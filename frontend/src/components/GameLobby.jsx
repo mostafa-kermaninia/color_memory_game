@@ -1,10 +1,5 @@
-// frontend/src/components/GameLobby.jsx
-
 import React, { useState, useEffect } from "react";
-import DefaultAvatar from "../assets/default-avatar.png"; // Add this line
-// Assuming you have a central api service to handle authenticated requests
-// If not, you can use axios or fetch directly.
-// For now, let's assume a fetch wrapper exists.
+import DefaultAvatar from "../assets/default-avatar.png";
 const api = {
     get: (url) =>
         fetch(url, {
