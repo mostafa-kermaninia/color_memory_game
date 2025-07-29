@@ -63,7 +63,7 @@ function App() {
         });
 
         setLevel((prevLevel) => prevLevel + 1);
-    }, [playSequence]);
+    }, [playSequence, level, sequence.length]);
 
     const handleGameOver = useCallback(
         async (score) => {
@@ -233,8 +233,7 @@ function App() {
         } else {
             authenticateUser();
         }
-    }, []);
-
+    }, [authenticateUser, token, userData]);
     // frontend/src/App.js
 
     const authContent = useMemo(
@@ -315,13 +314,20 @@ function App() {
                     key={leaderboardKey}
                     API_BASE={API_BASE}
                     finalScore={finalScore}
-                    onReplay={ startGame} 
+                    onReplay={startGame}
                     onHome={() => setView("lobby")}
                     userData={userData}
                     eventId={currentGameEventId}
                 />
             ),
-        [view, leaderboardKey, finalScore, userData, currentGameEventId]
+        [
+            view,
+            leaderboardKey,
+            finalScore,
+            startGame,
+            userData,
+            currentGameEventId,
+        ]
     );
 
     return (
