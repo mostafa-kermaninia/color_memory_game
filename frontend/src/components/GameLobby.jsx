@@ -61,7 +61,14 @@ const GameLobby = ({ onGameStart, userData, onLogout, onImageError }) => {
             {userData && (
                 <div className="flex items-center gap-3 bg-white/10 p-2 rounded-lg mb-6">
                     <img
-src={userData.photo_url ? `/api/avatar?url=${encodeURIComponent(userData.photo_url)}` : DefaultAvatar}                        alt="Profile"
+                        src={
+                            userData.photo_url
+                                ? `/api/avatar?url=${encodeURIComponent(
+                                      userData.photo_url
+                                  )}`
+                                : DefaultAvatar
+                        }
+                        alt="Profile"
                         className="w-12 h-12 rounded-full border-2 border-gray-500"
                         onError={onImageError}
                     />
@@ -100,35 +107,50 @@ src={userData.photo_url ? `/api/avatar?url=${encodeURIComponent(userData.photo_u
                 </button>
             </div>
 
-            {events.length > 0 && (
-                <div className="relative flex py-3 items-center">
-                    <div className="flex-grow border-t border-gray-600"></div>
-                    <span className="flex-shrink mx-4 text-gray-400">
-                        Events
-                    </span>
-                    <div className="flex-grow border-t border-gray-600"></div>
+            {/* This block intelligently decides what to show based on the events array */}
+            {events.length > 0 ? (
+                // If there ARE active events, show them
+                <>
+                    <div className="relative flex py-3 items-center">
+                        <div className="flex-grow border-t border-gray-600"></div>
+                        <span className="flex-shrink mx-4 text-gray-400">
+                            Events
+                        </span>
+                        <div className="flex-grow border-t border-gray-600"></div>
+                    </div>
+
+                    {events.map((event) => (
+                        <div
+                            key={event.id}
+                            className="bg-gray-700 bg-opacity-50 rounded-lg p-4 my-3 transition-transform transform hover:scale-105"
+                        >
+                            <h2 className="text-xl font-bold text-yellow-400">
+                                {event.name}
+                            </h2>
+                            <p className="text-sm text-gray-300 mt-1 mb-3">
+                                {event.description}
+                            </p>
+                            <button
+                                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                                onClick={() => handleStartGame(event.id)}
+                            >
+                                Join Event
+                            </button>
+                        </div>
+                    ))}
+                </>
+            ) : (
+                // If there are NO active events, show a disabled-looking card
+                <div className="bg-gray-900 bg-opacity-70 rounded-lg p-4 my-3 cursor-not-allowed">
+                    <h2 className="text-xl font-bold text-gray-500">
+                        No Active Tournaments
+                    </h2>
+                    <p className="text-sm text-gray-400 mt-1">
+                        Check back later for new events! You can still play in
+                        Free Play mode.
+                    </p>
                 </div>
             )}
-
-            {events.map((event) => (
-                <div
-                    key={event.id}
-                    className="bg-gray-700 bg-opacity-50 rounded-lg p-4 my-3 transition-transform transform hover:scale-105"
-                >
-                    <h2 className="text-xl font-bold text-yellow-400">
-                        {event.name}
-                    </h2>
-                    <p className="text-sm text-gray-300 mt-1 mb-3">
-                        {event.description}
-                    </p>
-                    <button
-                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                        onClick={() => handleStartGame(event.id)}
-                    >
-                        Join Event
-                    </button>
-                </div>
-            ))}
         </div>
     );
 };
