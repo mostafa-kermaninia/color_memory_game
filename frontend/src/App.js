@@ -168,7 +168,7 @@ function App() {
                 nextLevel();
             }, 1500);
         },
-        [nextLevel]
+        [nextLevel, isAuthenticated, token, level, sequence.length]
     );
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
