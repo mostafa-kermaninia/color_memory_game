@@ -145,6 +145,12 @@ function App() {
 
             setCurrentGameEventId(eventId);
 
+            if (!isAuthenticated || !token) {
+                setError("Please authenticate first");
+                setView("auth");
+                return;
+            }
+
             setSequence([]);
             setPlayerSequence([]);
             setLevel(0);
