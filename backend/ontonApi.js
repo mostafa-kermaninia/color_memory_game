@@ -3,7 +3,7 @@
 const fetch = require('node-fetch');
 const logger = require('./logger');
 
-const ONTON_API_BASE = 'https://staging-app.toncloud.observer/api/v1'; 
+const ONTON_API_BASE = 'https://app.onton.live/api/v1'; 
 const API_KEY = process.env.ONTON_API_KEY ? process.env.ONTON_API_KEY.trim() : null;
 const EVENT_UUID = process.env.ONTON_EVENT_UUID;
 
