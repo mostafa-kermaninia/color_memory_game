@@ -12,7 +12,7 @@ const bot = new TelegramBot(token);
 async function sendWinnerMessage(telegramId, userName, score, rewardLink) {
     const message = `🏆 *Congratulations, ${userName}!* 🏆
 
-You were one of the top players in the last tournament!
+You were the top player in the last tournament!
 
 *Your final score:* *${score}*
 
@@ -106,7 +106,7 @@ function startListening() {
                     parse_mode: 'Markdown',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: '📢 Join Community Group', url: groupLink }],
+                            [{ text: '💬 Join Community Group', url: groupLink }],
                             [{ text: '📢 Join Channel', url: channelLink }]
                             // , [{ text: '✅ I Joined', url: `https://t.me/Momis_game_bot?start` }]
                             // ,[{ text: '✅ I Joined', callback_data: 'check_membership' }]
