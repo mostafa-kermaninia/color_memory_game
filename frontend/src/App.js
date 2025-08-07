@@ -244,48 +244,101 @@ function App() {
     }, [authenticateUser, token, userData]);
     // frontend/src/App.js
 
-    const authContent = useMemo(
-        () =>
-            view === "auth" && (
-                <div className="flex flex-col items-center justify-center text-center h-screen px-4">
-                    <motion.h1
-                        className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500"
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        Color Memory
-                    </motion.h1>
-                    <motion.p
-                        className="text-lg text-gray-300 mb-8"
+    // frontend/src/App.js
+
+    const authContent = useMemo(() => {
+        // اگر view برابر با 'auth' نباشد، چیزی نمایش نده
+        if (view !== "auth") return null;
+
+        // محتوای اصلی صفحه با انیمیشن‌ها
+        const content = (
+            <>
+                <motion.h1
+                    className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    Color Memory
+                </motion.h1>
+
+                {/* اگر خطای عضویت وجود داشت، پیام و دکمه‌های عضویت را نمایش بده */}
+                {membershipRequired ? (
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="w-full max-w-xs"
                     >
-                        Ready to challenge your mind?
-                    </motion.p>
-
-                    {authLoading ? (
-                        <p className="text-lg text-gray-400 animate-pulse">
-                            Connecting...
+                        <p className="text-lg text-red-400 mb-4">
+                            {error || "Please join our channels to play."}
                         </p>
-                    ) : (
-                        <motion.button
-                            onClick={authenticateUser}
-                            className="px-8 py-3 bg-blue-600 text-white rounded-xl text-xl font-bold shadow-lg hover:bg-blue-700 transition-all duration-300"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                        <div className="space-y-3">
+                            {/* **مهم:** این لینک‌ها را با مقادیر واقعی خود از فایل .env یا ecosystem.config.js جایگزین کنید */}
+                            <a
+                                href="https://t.me/MOMIS_studio"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
+                            >
+                                📢 Join Channel
+                            </a>
+                            <a
+                                href="https://t.me/MOMIS_community"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
+                            >
+                                💬 Join Group
+                            </a>
+                            <button
+                                onClick={authenticateUser}
+                                className="mt-4 w-full py-2 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
+                            >
+                                ✅ I've Joined, Try Again
+                            </button>
+                        </div>
+                    </motion.div>
+                ) : (
+                    // در غیر این صورت، حالت عادی ورود را نمایش بده
+                    <>
+                        <motion.p
+                            className="text-lg text-gray-300 mb-8"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
                         >
-                            Login with Telegram
-                        </motion.button>
-                    )}
+                            Ready to challenge your mind?
+                        </motion.p>
 
-                    {error && <p className="text-red-400 mt-4">{error}</p>}
-                </div>
-            ),
-        [view, authLoading, error, authenticateUser]
-    );
+                        {authLoading ? (
+                            <p className="text-lg text-gray-400 animate-pulse">
+                                Connecting...
+                            </p>
+                        ) : (
+                            <motion.button
+                                onClick={authenticateUser}
+                                className="px-8 py-3 bg-blue-600 text-white rounded-xl text-xl font-bold shadow-lg hover:bg-blue-700 transition-all duration-300"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                Login with Telegram
+                            </motion.button>
+                        )}
+                    </>
+                )}
+                {/* نمایش خطاهای عمومی دیگر */}
+                {!membershipRequired && error && (
+                    <p className="text-red-400 mt-4">{error}</p>
+                )}
+            </>
+        );
 
+        return (
+            <div className="flex flex-col items-center justify-center text-center h-screen px-4">
+                {content}
+            </div>
+        );
+    }, [view, authLoading, error, authenticateUser, membershipRequired]);
     const lobbyContent = useMemo(
         () =>
             view === "lobby" && (
