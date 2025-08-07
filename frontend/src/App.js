@@ -29,7 +29,7 @@ function App() {
     const [litPad, setLitPad] = useState(null);
     const [message, setMessage] = useState("حافظه رنگ‌ها");
     const [finalScore, setFinalScore] = useState(null);
-
+    const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const playSequence = useCallback(async (currentSequence) => {
