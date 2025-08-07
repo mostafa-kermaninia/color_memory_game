@@ -16,28 +16,37 @@ const WEB_APP_URL = 'https://memory.momis.studio'; // آدرس بازی
 
 const bot = new TelegramBot(token);
 
-/**
- * تابع بهبودیافته برای بررسی عضویت کاربر
- */
+// --- Channel Membership Check (Improved with Logging) ---
 async function isUserMember(userId) {
-    if (!REQUIRED_CHANNEL_ID || !REQUIRED_GROUP_ID) {
-        logger.warn("Required channel/group IDs are not set. Skipping membership check.");
-        return true;
-    }
-
+    // **مهم:** مطمئن شوید این شناسه‌ها در فایل .env یا ecosystem.config.js شما تعریف شده‌اند
+    const CHANNEL_ID = process.env.REQUIRED_CHANNEL_ID || '@MOMIS_studio';
+    const GROUP_ID = process.env.REQUIRED_GROUP_ID || '@MOMIS_community';
+    
     try {
-        const validStatuses = ['creator', 'administrator', 'member'];
+        const validStatuses = ['member', 'administrator', 'creator'];
+
         const [channelMember, groupMember] = await Promise.all([
-            bot.getChatMember(REQUIRED_CHANNEL_ID, userId),
-            bot.getChatMember(REQUIRED_GROUP_ID, userId)
+            bot.getChatMember(CHANNEL_ID, userId),
+            bot.getChatMember(GROUP_ID, userId)
         ]);
 
-        return validStatuses.includes(channelMember.status) && validStatuses.includes(groupMember.status);
+        // --- لاگ تشخیصی برای دیدن وضعیت دقیق کاربر ---
+        logger.info(`Membership check for user ${userId}: Channel status='${channelMember.status}', Group status='${groupMember.status}'`);
+        // ---
+
+        const inChannel = validStatuses.includes(channelMember.status);
+        const inGroup = validStatuses.includes(groupMember.status);
+
+        return inChannel && inGroup;
+
     } catch (error) {
+        // اگر کاربر عضو نباشد، تلگرام خطای "user not found" می‌دهد که طبیعی است
         if (error.response?.body?.description.includes('user not found')) {
-            return false; // این خطا نیست، یعنی کاربر عضو نیست
+            logger.warn(`User ${userId} not found in channel/group, considered as not a member.`);
+            return false;
         }
-        logger.error(`Error checking membership for user ${userId}: ${error.message}`);
+        // سایر خطاها را به عنوان مشکل در نظر می‌گیریم
+        logger.error(`Failed to check channel membership for ${userId}: ${error.message}`);
         return false;
     }
 }
@@ -89,52 +98,54 @@ The tournament has now ended. Keep practicing for the next event!`;
 }
 
 
-/**
- * تابع اصلی برای گوش دادن به دستورات ربات (بازنویسی شده)
- */
 function startListening() {
     bot.onText(/\/start/, async (msg) => {
         const userId = msg.from.id;
-        const userName = msg.from.first_name;
+        const firstName = msg.from.first_name;
 
         try {
             const isMember = await isUserMember(userId);
-
-            if (isMember) {
-                // اگر کاربر عضو بود، پیام خوش‌آمدگویی و دکمه بازی را نشان بده
-                const welcomeText = `🎉 **Welcome, ${userName}!**\n\nReady to test your memory? Click the button below to start playing **Color Memory**!`;
-                const options = {
-                    parse_mode: 'Markdown',
-                    reply_markup: {
-                        inline_keyboard: [[{ text: '🚀 Play Game!', web_app: { url: WEB_APP_URL } }]]
-                    }
-                };
-                await bot.sendMessage(userId, welcomeText, options);
-            } else {
-                // اگر کاربر عضو نبود، پیام الزام به عضویت با دکمه‌های بهبودیافته را نشان بده
-                const joinMessage = `👋 **Hello, ${userName}!**\n\nTo play the game, you need to be a member of our community. Please join both channels and then click "I've Joined!"`;
+            
+            if (!isMember) {
+                // ارسال پیام الزام به عضویت با دکمه‌های بهبودیافته
+                const channelLink = `https://t.me/${(process.env.REQUIRED_CHANNEL_ID || '@MOMIS_studio').replace('@', '')}`;
+                const groupLink = process.env.GROUP_INVITE_LINK || 'https://t.me/MOMIS_community';
+                const message = `👋 Hello, *${firstName}*!\n\nTo play the game, please join our community channels first, then click the button below.`;
+                
                 const options = {
                     parse_mode: 'Markdown',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: '📢 Join Official Channel', url: `https://t.me/${REQUIRED_CHANNEL_ID.replace('@', '')}` }],
-                            [{ text: '💬 Join Community Group', url: GROUP_INVITE_LINK }],
-                            [{ text: '✅ I\'ve Joined!', callback_data: 'check_membership' }]
+                            [{ text: '📢 Join Channel', url: channelLink }],
+                            [{ text: '💬 Join Community Group', url: groupLink }],
+                            [{ text: '✅ I\'ve Joined!', callback_data: 'check_membership' }] // دکمه جدید
                         ]
                     }
                 };
-                await bot.sendMessage(userId, joinMessage, options);
+                
+                return await bot.sendMessage(userId, message, options);
             }
+
+            // اگر کاربر از قبل عضو بود، پیام خوش‌آمدگویی را ارسال کن
+            const welcomeText = `🎉 Welcome, *${firstName}*!\n\nReady to test your memory? Click the button below to start playing **Color Memory**!`;
+            const options = {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: "🚀 Play Game!", web_app: { url: "https://memory.momis.studio" } }]]
+                }
+            };
+            await bot.sendMessage(userId, welcomeText, options);
+
         } catch (error) {
-            logger.error(`Error in /start handler for user ${userId}: ${error.message}`);
-            await bot.sendMessage(userId, '❌ An unexpected error occurred. Please try again in a few moments.');
+            logger.error(`Error in /start handler: ${error.message}`);
+            await bot.sendMessage(msg.chat.id, '❌ An error occurred. Please try again later.');
         }
     });
 
-    // مدیریت دکمه "عضو شدم" برای تجربه کاربری بهتر
+    // مدیریت دکمه "عضو شدم"
     bot.on('callback_query', async (callbackQuery) => {
-        const userId = callbackQuery.from.id;
         const msg = callbackQuery.message;
+        const userId = callbackQuery.from.id;
 
         if (callbackQuery.data === 'check_membership') {
             const isMember = await isUserMember(userId);
@@ -145,7 +156,7 @@ function startListening() {
                 const playOptions = {
                     parse_mode: 'Markdown',
                     reply_markup: {
-                        inline_keyboard: [[{ text: '🚀 Play Game!', web_app: { url: WEB_APP_URL } }]]
+                        inline_keyboard: [[{ text: '🚀 Play Game!', web_app: { url: "https://memory.momis.studio" } }]]
                     }
                 };
                 // ویرایش پیام به جای ارسال پیام جدید، تجربه بهتری است
@@ -164,9 +175,9 @@ function startListening() {
         }
     });
 
-    bot.startPolling({ polling: { interval: 300 } });
-    bot.on('polling_error', (error) => logger.error(`Telegram Polling Error: ${error.message}`));
-    logger.info('Telegram Bot is listening for commands...');
+    bot.startPolling();
+    bot.on("polling_error", (error) => logger.error(`Telegram Polling Error: ${error.message}`));
+    logger.info("Telegram Bot initialized and is now listening for commands...");
 }
 
 // **مهم:** آبجکت bot و تابع isUserMember را هم export کنید
