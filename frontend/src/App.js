@@ -173,6 +173,8 @@ function App() {
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
         setError(null);
+        setMembershipRequired(false); // در ابتدای هر تلاش، این حالت را ریست می‌کنیم
+
         try {
             const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
@@ -189,7 +191,13 @@ function App() {
                 body: JSON.stringify({ initData }),
             });
             const data = await response.json();
-
+            // ۲. بخش تشخیص خطای عضویت را اضافه می‌کنیم
+            if (response.status === 403 && data.membership_required) {
+                setError(data.message); // پیام خطا را از سرور می‌گیریم
+                setMembershipRequired(true); // حالت نمایش پیام عضویت را فعال می‌کنیم
+                setView("auth"); // در همین صفحه باقی می‌مانیم
+                return; // از ادامه تابع خارج می‌شویم
+            }
             if (!response.ok || !data.valid) {
                 throw new Error(data.message || "Authentication failed");
             }
