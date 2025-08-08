@@ -75,13 +75,13 @@ function App() {
     }, [view]); // این افکت فقط زمانی اجرا می‌شود که view تغییر کند
 
     // تابع کمکی برای پخش افکت‌های صوتی
-    const playSoundEffect = (soundName) => {
-        const sound = soundsRef.current[soundName];
-        if (sound) {
-            sound.currentTime = 0; // برای پخش مجدد سریع
-            sound.play().catch((error) => console.log("SFX play failed."));
-        }
-    };
+    // const playSoundEffect = (soundName) => {
+    //     const sound = soundsRef.current[soundName];
+    //     if (sound) {
+    //         sound.currentTime = 0; // برای پخش مجدد سریع
+    //         sound.play().catch((error) => console.log("SFX play failed."));
+    //     }
+    // };
 
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
@@ -125,7 +125,7 @@ function App() {
 
     const handleGameOver = useCallback(
         async (score) => {
-            playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
+            // playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
 
             console.log(
                 `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
@@ -166,7 +166,7 @@ function App() {
     const handlePadClick = useCallback(
         (color) => {
             if (!isPlayerTurn) return;
-            playSoundEffect("click"); // <--- پخش صدای کلیک
+            // playSoundEffect("click"); // <--- پخش صدای کلیک
 
             const newPlayerSequence = [...playerSequence, color];
             setPlayerSequence(newPlayerSequence);
