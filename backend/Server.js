@@ -345,9 +345,16 @@ app.get("/api/avatar", async (req, res) => {
     }
 });
 
-// --- سرو کردن فایل‌های استاتیک فرانت‌اند و مدیریت روت‌های دیگر (بدون تغییر) ---
 app.use(express.static(path.join(__dirname, "../frontend/build")));
+
+// مدیریت روت اصلی با هدرهای ضد کش برای فایل index.html
 app.get("*", (req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+    });
     res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
 });
 
