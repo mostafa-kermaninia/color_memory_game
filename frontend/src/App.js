@@ -47,23 +47,30 @@ function App() {
         setPlayerSequence([]);
     }, []);
 
-    const nextLevel = useCallback(() => {
-        console.log(
-            `%c[nextLevel] Starting. Current level: ${level}, Sequence length: ${sequence.length}`,
-            "color: #FF8C00;"
-        );
+    const fetchNextLevel = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/next-level`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
-        const colors = ["green", "red", "yellow", "blue"];
-        const nextColor = colors[Math.floor(Math.random() * colors.length)];
+            if (!response.ok) {
+                throw new Error("Failed to fetch next level from server.");
+            }
+            const data = await response.json();
 
-        setSequence((prevSequence) => {
-            const newSequence = [...prevSequence, nextColor];
-            playSequence(newSequence);
-            return newSequence;
-        });
-
-        setLevel((prevLevel) => prevLevel + 1);
-    }, [playSequence, level, sequence.length]);
+            setSequence(data.sequence);
+            setLevel(data.sequence.length); // سطح بازی برابر با طول دنباله است
+            playSequence(data.sequence);
+        } catch (err) {
+            console.error("Error fetching next level:", err);
+            setError("Connection error, please try again.");
+            setView("lobby"); // بازگشت به لابی در صورت خطا
+        }
+    }, [token, playSequence]);
 
     const handleGameOver = useCallback(
         async (score) => {
@@ -117,13 +124,14 @@ function App() {
                 newPlayerSequence[newPlayerSequence.length - 1] !==
                 sequence[newPlayerSequence.length - 1]
             ) {
-                handleGameOver(level - 1);
+                handleGameOver(level - 1); // امتیاز برابر با سطح قبلی است
                 return;
             }
 
+            // اگر کاربر دنباله را کامل و درست وارد کرد
             if (newPlayerSequence.length === sequence.length) {
-                setIsPlayerTurn(false);
-                setTimeout(nextLevel, 500);
+                setIsPlayerTurn(false); // نوبت بازیکن تمام می‌شود
+                setTimeout(fetchNextLevel, 500); // درخواست مرحله بعد از سرور
             }
         },
         [
@@ -131,45 +139,55 @@ function App() {
             playerSequence,
             sequence,
             level,
-            nextLevel,
+            fetchNextLevel,
             handleGameOver,
         ]
     );
 
     const startGame = useCallback(
-        (eventId) => {
-            console.log(
-                `%c[startGame] STARTING NEW GAME. State BEFORE reset: level=${level}, sequence length=${sequence.length}`,
-                "color: #00FF7F; font-weight: bold;"
-            );
-
-            setCurrentGameEventId(eventId);
-
+        async (eventId) => {
             if (!isAuthenticated || !token) {
                 setError("Please authenticate first");
                 setView("auth");
                 return;
             }
 
-            setSequence([]);
-            setPlayerSequence([]);
-            setLevel(0);
+            setCurrentGameEventId(eventId);
             setFinalScore(null);
-
             setView("game");
             setMessage("Ready?");
 
-            setTimeout(() => {
-                console.log(
-                    `%c[startGame -> setTimeout] Calling nextLevel(). State SHOULD BE reset now.`,
-                    "color: #1E90FF;"
-                );
+            try {
+                const response = await fetch(`${API_BASE}/start-game`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ eventId }), // ارسال eventId
+                });
 
-                nextLevel();
-            }, 1500);
+                if (!response.ok) {
+                    throw new Error("Could not start the game.");
+                }
+                const data = await response.json();
+
+                // تنظیم بازی با دنباله‌ی دریافت شده از سرور
+                setSequence(data.sequence);
+                setLevel(1); // بازی از مرحله ۱ شروع می‌شود
+                setPlayerSequence([]);
+
+                // نمایش دنباله اولیه به کاربر
+                setTimeout(() => playSequence(data.sequence), 1000);
+            } catch (err) {
+                console.error("Error starting game:", err);
+                setError("Failed to start a new game.");
+                setView("lobby");
+            }
         },
-        [nextLevel, isAuthenticated, token, level, sequence.length]
+        [isAuthenticated, token, playSequence]
     );
+
     const authenticateUser = useCallback(async () => {
         setAuthLoading(true);
         setError(null);

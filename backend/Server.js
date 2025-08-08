@@ -1,6 +1,6 @@
 console.log("✅ Server.js file is starting to execute...");
 require("dotenv").config();
-const { isUserMember } = require("./bot"); 
+const { isUserMember } = require("./bot");
 
 const express = require("express");
 const cors = require("cors");
@@ -13,6 +13,9 @@ const { User, Score, sequelize } = require("./DataBase/models");
 
 const app = express();
 app.use(express.json());
+
+const gameSessions = {};
+const colors = ["green", "red", "yellow", "blue"];
 
 // --- پیکربندی CORS (بدون تغییر) ---
 const allowedOrigins = [
@@ -68,15 +71,16 @@ app.post("/api/telegram-auth", async (req, res) => {
                 .json({ valid: false, message: "initData is required" });
 
         const userData = validateTelegramData(initData);
-      // --- بخش جدید: بررسی عضویت اجباری ---
+        // --- بخش جدید: بررسی عضویت اجباری ---
         const isMember = await isUserMember(userData.id);
         if (!isMember) {
             logger.info(`Auth blocked for non-member user: ${userData.id}`);
             // کد 403 به معنی "دسترسی ممنوع" است
-            return res.status(403).json({ 
-                valid: false, 
-                message: "To play the game, you must join our channel and group first.",
-                membership_required: true // یک فلگ برای فرانت‌اند تا پیام مناسب را نمایش دهد
+            return res.status(403).json({
+                valid: false,
+                message:
+                    "To play the game, you must join our channel and group first.",
+                membership_required: true, // یک فلگ برای فرانت‌اند تا پیام مناسب را نمایش دهد
             });
         }
         // --- پایان بخش بررسی عضویت ---
@@ -117,9 +121,55 @@ app.post("/api/telegram-auth", async (req, res) => {
     }
 });
 
+app.post("/api/start-game", authenticateToken, (req, res) => {
+    const userId = req.user.userId;
+    logger.info(`[start-game] User ${userId} is starting a new game.`);
+
+    // ایجاد یک دنباله جدید با یک رنگ تصادفی
+    const firstColor = colors[Math.floor(Math.random() * colors.length)];
+    const newSequence = [firstColor];
+
+    // ذخیره دنباله در حافظه سرور
+    gameSessions[userId] = { sequence: newSequence };
+
+    res.json({ status: "success", sequence: newSequence });
+});
+
+app.post("/api/next-level", authenticateToken, (req, res) => {
+    const userId = req.user.userId;
+    const userSession = gameSessions[userId];
+
+    // اگر سشن بازی برای کاربر وجود نداشت، یعنی خطایی رخ داده
+    if (!userSession) {
+        logger.warn(
+            `[next-level] No active game session found for user ${userId}.`
+        );
+        return res
+            .status(404)
+            .json({ status: "error", message: "No active game found." });
+    }
+
+    // اضافه کردن یک رنگ تصادفی جدید به دنباله
+    const nextColor = colors[Math.floor(Math.random() * colors.length)];
+    userSession.sequence.push(nextColor);
+
+    logger.info(
+        `[next-level] User ${userId} advanced. New sequence length: ${userSession.sequence.length}`
+    );
+
+    // ارسال دنباله کامل و جدید به کاربر
+    res.json({ status: "success", sequence: userSession.sequence });
+});
+
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score, eventId } = req.body;
     const userId = req.user.userId;
+
+    // --- حذف سشن بازی کاربر پس از پایان بازی ---
+    if (gameSessions[userId]) {
+        delete gameSessions[userId];
+        logger.info(`[gameOver] Cleared game session for user ${userId}.`);
+    }
 
     logger.info(
         `[gameOver] Received score: ${score} for user: ${userId} in event: ${
@@ -176,7 +226,10 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
         } else {
             whereCondition.eventId = null;
         }
-        logger.info(`Fetching leaderboard for user ${currentUserTelegramId} with condition:`, whereCondition);
+        logger.info(
+            `Fetching leaderboard for user ${currentUserTelegramId} with condition:`,
+            whereCondition
+        );
 
         // مرحله ۱: بهترین امتیاز *تمام* کاربران را بر اساس شرط پیدا می‌کنیم (بدون limit)
         const allScores = await Score.findAll({
@@ -213,12 +266,13 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
 
         // مرحله ۴: اطلاعات کامل (نام، عکس و...) را برای کاربران مورد نیاز می‌گیریم
         const userIdsToFetch = [
-            ...new Set([ // با Set از ارسال ID تکراری جلوگیری می‌کنیم
+            ...new Set([
+                // با Set از ارسال ID تکراری جلوگیری می‌کنیم
                 ...top5Players.map((p) => p.userTelegramId),
                 ...(currentUserData ? [currentUserData.userTelegramId] : []), // اگر کاربر فعلی رکوردی داشت، ID او را هم اضافه کن
             ]),
         ];
-        
+
         const users = await User.findAll({
             where: { telegramId: userIdsToFetch },
             raw: true,
@@ -242,7 +296,7 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
                 rank: playerData.rank,
             };
         };
-        
+
         // مرحله ۵: ساخت آبجکت نهایی برای ارسال به فرانت‌اند
         res.json({
             status: "success",
@@ -251,7 +305,6 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
                 currentUser: formatPlayer(currentUserData), // اطلاعات کاربر فعلی
             },
         });
-
     } catch (e) {
         logger.error(`Leaderboard error: ${e.message}`, { stack: e.stack });
         res.status(500).json({
@@ -260,8 +313,6 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
         });
     }
 });
-
-
 
 app.get("/api/events", (req, res) => {
     const activeEvents = [];
