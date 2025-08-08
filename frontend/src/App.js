@@ -38,8 +38,10 @@ function App() {
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
+
     const audioManager = useRef({
+        isUnlocked: false, // وضعیت قفل را مستقیماً در ref نگه می‌داریم
+        unlockPromise: null, // یک Promise برای مدیریت فرآیند باز شدن قفل
         music: null,
         sfx: {
             click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
@@ -54,29 +56,60 @@ function App() {
         },
     });
 
+    // تابع باز کردن قفل صدا که یک Promise برمی‌گرداند
     const unlockAudio = useCallback(() => {
-        if (isAudioUnlocked) return;
-        const silentSound = new Audio(
-            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
-        );
-        silentSound
-            .play()
-            .then(() => {
-                setIsAudioUnlocked(true);
-                console.log("✅ Audio context unlocked successfully.");
-            })
-            .catch((e) => console.error("Audio unlock failed.", e));
-    }, [isAudioUnlocked]);
+        const manager = audioManager.current;
+
+        // اگر فرآیند باز کردن قفل از قبل شروع شده، همان Promise را برگردان
+        if (manager.unlockPromise) {
+            return manager.unlockPromise;
+        }
+
+        // یک Promise جدید بساز که فقط یک بار اجرا می‌شود
+        manager.unlockPromise = new Promise((resolve, reject) => {
+            // اگر از قبل باز است، بلافاصله resolve کن
+            if (manager.isUnlocked) {
+                resolve(true);
+                return;
+            }
+
+            const silentSound = new Audio(
+                "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
+            );
+
+            silentSound
+                .play()
+                .then(() => {
+                    console.log("✅ Audio context unlocked successfully.");
+                    manager.isUnlocked = true;
+
+                    // افکت‌های صوتی را از قبل بارگذاری می‌کنیم تا آماده باشند
+                    Object.values(manager.sfx).forEach((sound) => sound.load());
+
+                    resolve(true); // موفقیت را اعلام کن
+                })
+                .catch((error) => {
+                    console.error("Audio unlock failed.", error);
+                    reject(error); // شکست را اعلام کن
+                });
+        });
+
+        return manager.unlockPromise;
+    }, []);
 
     const playMusic = useCallback((musicName) => {
         const manager = audioManager.current;
-        if (!manager.musicPaths[musicName]) {
+        if (!manager.isUnlocked) return; // فقط اگر قفل باز است ادامه بده
+
+        const newMusicPath = manager.musicPaths[musicName];
+
+        // اگر موسیقی تعریف نشده، قبلی را متوقف کن
+        if (!newMusicPath) {
             if (manager.music) manager.music.pause();
-            manager.music = null;
             return;
         }
 
-        const newMusicPath = manager.musicPaths[musicName];
+        // اگر همان موسیقی در حال پخش است، کاری نکن
         if (manager.music && manager.music.src.includes(newMusicPath)) {
             return;
         }
@@ -87,66 +120,26 @@ function App() {
 
         manager.music = new Audio(newMusicPath);
         manager.music.loop = true;
-        manager.music
-            .play()
-            .catch((e) => console.log("Music play interrupted or failed."));
+        manager.music.play().catch((e) => {}); // خطاها را نادیده بگیر چون طبیعی هستند
     }, []);
 
-    const playSoundEffect = useCallback(
-        (soundName) => {
-            if (!isAudioUnlocked) return;
-            const sound = audioManager.current.sfx[soundName];
-            if (sound) {
-                sound.currentTime = 0;
-                sound.play();
-            }
-        },
-        [isAudioUnlocked]
-    );
+    const playSoundEffect = useCallback((soundName) => {
+        const manager = audioManager.current;
+        if (!manager.isUnlocked) return; // فقط اگر قفل باز است ادامه بده
+
+        const sound = manager.sfx[soundName];
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play();
+        }
+    }, []);
 
     useEffect(() => {
-        if (isAudioUnlocked) {
+        // این افکت فقط وظیفه تعویض موسیقی را بر عهده دارد
+        if (audioManager.current.isUnlocked) {
             playMusic(view);
         }
-    }, [view, isAudioUnlocked, playMusic]);
-
-    // --- پایان بخش اصلاح شده مدیریت صدا ---
-
-    const playSequence = useCallback(async (currentSequence) => {
-        setIsPlayerTurn(false);
-        setMessage("Watch Closely...");
-        await sleep(1000);
-        for (const color of currentSequence) {
-            setLitPad(color);
-            await sleep(400);
-            setLitPad(null);
-            await sleep(200);
-        }
-        setMessage("Your turn!");
-        setIsPlayerTurn(true);
-        setPlayerSequence([]);
-    }, []);
-
-    const fetchNextLevel = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_BASE}/next-level`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-            if (!response.ok) throw new Error("Failed to fetch next level");
-            const data = await response.json();
-            setSequence(data.sequence);
-            setLevel(data.sequence.length);
-            playSequence(data.sequence);
-        } catch (err) {
-            console.error("Error fetching next level:", err);
-            setError("Connection error, please try again.");
-            setView("lobby");
-        }
-    }, [token, playSequence]);
+    }, [view, playMusic]);
 
     const handleGameOver = useCallback(
         async (score) => {
@@ -226,7 +219,15 @@ function App() {
 
     const startGame = useCallback(
         async (eventId) => {
-            unlockAudio(); // <--- باز کردن قفل صدا (برای اطمینان)
+            // <--- async اضافه شد
+            try {
+                await unlockAudio(); // <--- منتظر باز شدن کامل قفل صدا بمان
+            } catch (error) {
+                console.log(
+                    "Could not start game because audio failed to unlock."
+                );
+                return; // اگر صدا فعال نشد، بازی را شروع نکن
+            }
 
             if (!isAuthenticated || !token) {
                 setError("Please authenticate first");
@@ -234,9 +235,10 @@ function App() {
                 return;
             }
 
+            // بقیه منطق شما...
             setCurrentGameEventId(eventId);
             setFinalScore(null);
-            setView("game");
+            setView("game"); // <--- این خط حالا بعد از باز شدن قفل اجرا می‌شود
             setMessage("Ready?");
 
             try {
@@ -246,20 +248,13 @@ function App() {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ eventId }), // ارسال eventId
+                    body: JSON.stringify({ eventId }),
                 });
-
-                if (!response.ok) {
-                    throw new Error("Could not start the game.");
-                }
+                if (!response.ok) throw new Error("Could not start the game.");
                 const data = await response.json();
-
-                // تنظیم بازی با دنباله‌ی دریافت شده از سرور
                 setSequence(data.sequence);
-                setLevel(1); // بازی از مرحله ۱ شروع می‌شود
+                setLevel(1);
                 setPlayerSequence([]);
-
-                // نمایش دنباله اولیه به کاربر
                 setTimeout(() => playSequence(data.sequence), 1000);
             } catch (err) {
                 console.error("Error starting game:", err);
