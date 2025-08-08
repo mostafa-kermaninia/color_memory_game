@@ -38,90 +38,92 @@ function App() {
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const soundsRef = useRef({
-        lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
-        game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
-        click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
-        gameover: new Audio(`${process.env.PUBLIC_URL}/sounds/gameover.wav`),
+    // useRef برای نگهداری آبجکت‌های صوتی و وضعیت قفل صدا
+    const audioManager = useRef({
+        isUnlocked: false, // آیا قفل صدای مرورگر باز شده است؟
+        music: null, // آبجکت صوتی برای موسیقی پس‌زمینه
+        sfx: {
+            // آبجکت‌های صوتی برای افکت‌ها
+            click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
+            gameover: new Audio(
+                `${process.env.PUBLIC_URL}/sounds/gameover.wav`
+            ),
+        },
+        // مسیرهای فایل‌های موسیقی
+        musicPaths: {
+            lobby: `${process.env.PUBLIC_URL}/sounds/lobby.mp3`,
+            game: `${process.env.PUBLIC_URL}/sounds/game.mp3`,
+            board: `${process.env.PUBLIC_URL}/sounds/leaderboard.mp3`,
+        },
     });
-    const currentMusicKey = useRef(null);
 
-    // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
-    useEffect(() => {
-        const sounds = soundsRef.current;
-        const musicToPlay = sounds[view];
+    // تابع اصلی برای باز کردن قفل صدای مرورگر
+    const unlockAudio = useCallback(() => {
+        const manager = audioManager.current;
+        if (manager.isUnlocked) return; // اگر قبلاً باز شده، کاری نکن
 
-        // توقف موسیقی در حال پخش قبلی
-        if (currentMusicKey.current && sounds[currentMusicKey.current]) {
-            sounds[currentMusicKey.current].pause();
-            sounds[currentMusicKey.current].currentTime = 0; // بازگشت به ابتدای فایل
+        // این یک ترفند استاندارد است: یک صدای خالی پخش و متوقف می‌کنیم تا مجوز بگیریم
+        const silentSound = new Audio(
+            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
+        );
+        silentSound
+            .play()
+            .then(() => {
+                manager.isUnlocked = true;
+                console.log("✅ Audio context unlocked successfully.");
+                // پس از باز شدن قفل، موسیقی صفحه فعلی را پخش کن
+                playMusic(view);
+            })
+            .catch((e) => console.error("Audio unlock failed.", e));
+    }, [view]); // وابستگی به view برای پخش موسیقی اولیه
+
+    // تابع برای پخش موسیقی پس‌زمینه
+    const playMusic = useCallback((musicName) => {
+        const manager = audioManager.current;
+        // اگر قفل صدا باز نباشد یا موسیقی برای این بخش تعریف نشده باشد، خارج شو
+        if (!manager.isUnlocked || !manager.musicPaths[musicName]) {
+            // موسیقی در حال پخش را متوقف کن اگر به صفحه‌ای بدون موسیقی می‌رویم
+            if (manager.music) manager.music.pause();
+            return;
         }
 
-        // پخش موسیقی جدید
-        if (musicToPlay && ["lobby", "game", "lobby"].includes(view)) {
-            musicToPlay.loop = true; // تکرار خودکار موسیقی پس‌زمینه
-            musicToPlay.play().catch((error) => {
-                console.log("Audio autoplay was prevented by the browser.");
-            });
-            currentMusicKey.current = view; // ذخیره نام موسیقی در حال پخش
-        } else {
-            currentMusicKey.current = null;
+        // اگر موسیقی در حال پخش همان موسیقی جدید است، کاری نکن
+        if (
+            manager.music &&
+            manager.music.src.includes(manager.musicPaths[musicName])
+        ) {
+            return;
         }
 
-        // هنگام بسته شدن کامپوننت، تمام صداها را متوقف کن
-        return () => {
-            Object.values(sounds).forEach((sound) => sound.pause());
-        };
-    }, [view]); // این افکت فقط زمانی اجرا می‌شود که view تغییر کند
-
-    // تابع کمکی برای پخش افکت‌های صوتی
-    const playSoundEffect = (soundName) => {
-        const sound = soundsRef.current[soundName];
-        if (sound) {
-            sound.currentTime = 0; // برای پخش مجدد سریع
-            sound.play().catch((error) => console.log("SFX play failed."));
+        // توقف موسیقی قبلی
+        if (manager.music) {
+            manager.music.pause();
         }
-    };
 
-    const playSequence = useCallback(async (currentSequence) => {
-        setIsPlayerTurn(false);
-        setMessage("Watch Closely...");
-        await sleep(1000);
-        for (const color of currentSequence) {
-            setLitPad(color);
-            await sleep(400);
-            setLitPad(null);
-            await sleep(200);
-        }
-        setMessage("Your turn!");
-        setIsPlayerTurn(true);
-        setPlayerSequence([]);
+        // ساخت و پخش موسیقی جدید
+        manager.music = new Audio(manager.musicPaths[musicName]);
+        manager.music.loop = true;
+        manager.music.play();
     }, []);
 
-    const fetchNextLevel = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_BASE}/next-level`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+    // تابع برای پخش افکت‌های صوتی
+    const playSoundEffect = useCallback((soundName) => {
+        const manager = audioManager.current;
+        if (!manager.isUnlocked) return; // فقط اگر قفل باز است پخش کن
 
-            if (!response.ok) {
-                throw new Error("Failed to fetch next level from server.");
-            }
-            const data = await response.json();
-
-            setSequence(data.sequence);
-            setLevel(data.sequence.length); // سطح بازی برابر با طول دنباله است
-            playSequence(data.sequence);
-        } catch (err) {
-            console.error("Error fetching next level:", err);
-            setError("Connection error, please try again.");
-            setView("lobby"); // بازگشت به لابی در صورت خطا
+        const sound = manager.sfx[soundName];
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play();
         }
-    }, [token, playSequence]);
+    }, []);
+
+    // این افکت با تغییر view، موسیقی را عوض می‌کند
+    useEffect(() => {
+        playMusic(view);
+    }, [view, playMusic]);
+
+    // --- پایان بخش جدید و کامل مدیریت صدا ---
 
     const handleGameOver = useCallback(
         async (score) => {
@@ -193,6 +195,7 @@ function App() {
             playerSequence,
             sequence,
             level,
+            playSoundEffect,
             fetchNextLevel,
             handleGameOver,
         ]
@@ -200,9 +203,8 @@ function App() {
 
     const startGame = useCallback(
         async (eventId) => {
-            Object.values(soundsRef.current).forEach((sound) => {
-                sound.load(); // لود کردن صداها
-            });
+            unlockAudio(); // <--- باز کردن قفل صدا (برای اطمینان)
+
             if (!isAuthenticated || !token) {
                 setError("Please authenticate first");
                 setView("auth");
@@ -242,10 +244,12 @@ function App() {
                 setView("lobby");
             }
         },
-        [isAuthenticated, token, playSequence]
+        [isAuthenticated, token, playSequence, unlockAudio]
     );
 
     const authenticateUser = useCallback(async () => {
+        unlockAudio(); // <--- باز کردن قفل صدا
+
         setAuthLoading(true);
         setError(null);
         setMembershipRequired(false); // در ابتدای هر تلاش، این حالت را ریست می‌کنیم
@@ -291,7 +295,7 @@ function App() {
         } finally {
             setAuthLoading(false);
         }
-    }, []);
+    }, [unlockAudio]);
 
     const handleLogout = useCallback(() => {
         localStorage.removeItem("jwtToken");
