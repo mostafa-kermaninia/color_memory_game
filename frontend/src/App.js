@@ -38,7 +38,6 @@ function App() {
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-
     const audioManager = useRef({
         isUnlocked: false, // وضعیت قفل را مستقیماً در ref نگه می‌داریم
         unlockPromise: null, // یک Promise برای مدیریت فرآیند باز شدن قفل
@@ -140,6 +139,42 @@ function App() {
             playMusic(view);
         }
     }, [view, playMusic]);
+
+    const playSequence = useCallback(async (currentSequence) => {
+        setIsPlayerTurn(false);
+        setMessage("Watch Closely...");
+        await sleep(1000);
+        for (const color of currentSequence) {
+            setLitPad(color);
+            await sleep(400);
+            setLitPad(null);
+            await sleep(200);
+        }
+        setMessage("Your turn!");
+        setIsPlayerTurn(true);
+        setPlayerSequence([]);
+    }, []);
+
+    const fetchNextLevel = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/next-level`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            if (!response.ok) throw new Error("Failed to fetch next level");
+            const data = await response.json();
+            setSequence(data.sequence);
+            setLevel(data.sequence.length);
+            playSequence(data.sequence);
+        } catch (err) {
+            console.error("Error fetching next level:", err);
+            setError("Connection error, please try again.");
+            setView("lobby");
+        }
+    }, [token, playSequence]);
 
     const handleGameOver = useCallback(
         async (score) => {
