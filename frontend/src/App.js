@@ -435,7 +435,7 @@ function App() {
             <img
                 src={`${process.env.PUBLIC_URL}/teamlogo.png`}
                 alt="Team Logo"
-                className="absolute bottom-4 right-4 w-24 opacity-70 pointer-events-none"
+                className="absolute bottom-4 right-4 w-16 opacity-70 pointer-events-none"
             />
         </div>
     );
