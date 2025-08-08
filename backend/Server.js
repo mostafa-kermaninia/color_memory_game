@@ -16,7 +16,9 @@ app.use(express.json());
 
 const gameSessions = {};
 const colors = ["green", "red", "yellow", "blue"];
-
+const generateRandomSequence = (length) => {
+    return Array.from({ length }, () => colors[Math.floor(Math.random() * colors.length)]);
+};
 // --- پیکربندی CORS (بدون تغییر) ---
 const allowedOrigins = [
     "https://momis.studio",
@@ -125,42 +127,36 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     logger.info(`[start-game] User ${userId} is starting a new game.`);
 
-    // ایجاد یک دنباله جدید با یک رنگ تصادفی
-    const firstColor = colors[Math.floor(Math.random() * colors.length)];
-    const newSequence = [firstColor];
+    // تنظیم سطح بازی روی ۱
+    gameSessions[userId] = { level: 1 };
 
-    // ذخیره دنباله در حافظه سرور
-    gameSessions[userId] = { sequence: newSequence };
+    // ایجاد یک دنباله کاملاً جدید به طول ۱
+    const sequence = generateRandomSequence(1);
 
-    res.json({ status: "success", sequence: newSequence });
+    res.json({ status: "success", sequence: sequence });
 });
 
 app.post("/api/next-level", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     const userSession = gameSessions[userId];
 
-    // اگر سشن بازی برای کاربر وجود نداشت، یعنی خطایی رخ داده
     if (!userSession) {
-        logger.warn(
-            `[next-level] No active game session found for user ${userId}.`
-        );
-        return res
-            .status(404)
-            .json({ status: "error", message: "No active game found." });
+        logger.warn(`[next-level] No active game session found for user ${userId}.`);
+        return res.status(404).json({ status: "error", message: "No active game found." });
     }
 
-    // اضافه کردن یک رنگ تصادفی جدید به دنباله
-    const nextColor = colors[Math.floor(Math.random() * colors.length)];
-    userSession.sequence.push(nextColor);
+    // افزایش سطح بازیکن
+    userSession.level += 1;
+    const newLevel = userSession.level;
 
-    logger.info(
-        `[next-level] User ${userId} advanced. New sequence length: ${userSession.sequence.length}`
-    );
+    // ایجاد یک دنباله کاملاً جدید و تصادفی به طول سطح جدید
+    const newSequence = generateRandomSequence(newLevel);
 
-    // ارسال دنباله کامل و جدید به کاربر
-    res.json({ status: "success", sequence: userSession.sequence });
+    logger.info(`[next-level] User ${userId} advanced to level ${newLevel}.`);
+    
+    // ارسال دنباله جدید به کاربر
+    res.json({ status: "success", sequence: newSequence });
 });
-
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score, eventId } = req.body;
     const userId = req.user.userId;
@@ -184,6 +180,7 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
             .status(400)
             .json({ status: "error", message: "Invalid score." });
     }
+
 
     try {
         await Score.create({
