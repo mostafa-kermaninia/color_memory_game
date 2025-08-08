@@ -38,18 +38,15 @@ function App() {
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // useRef برای نگهداری آبجکت‌های صوتی و وضعیت قفل صدا
+    const [isAudioUnlocked, setIsAudioUnlocked] = useState(false);
     const audioManager = useRef({
-        isUnlocked: false, // آیا قفل صدای مرورگر باز شده است؟
-        music: null, // آبجکت صوتی برای موسیقی پس‌زمینه
+        music: null,
         sfx: {
-            // آبجکت‌های صوتی برای افکت‌ها
             click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
             gameover: new Audio(
                 `${process.env.PUBLIC_URL}/sounds/gameover.wav`
             ),
         },
-        // مسیرهای فایل‌های موسیقی
         musicPaths: {
             lobby: `${process.env.PUBLIC_URL}/sounds/lobby.mp3`,
             game: `${process.env.PUBLIC_URL}/sounds/game.mp3`,
@@ -57,73 +54,64 @@ function App() {
         },
     });
 
-    // تابع اصلی برای باز کردن قفل صدای مرورگر
     const unlockAudio = useCallback(() => {
-        const manager = audioManager.current;
-        if (manager.isUnlocked) return; // اگر قبلاً باز شده، کاری نکن
-
-        // این یک ترفند استاندارد است: یک صدای خالی پخش و متوقف می‌کنیم تا مجوز بگیریم
+        if (isAudioUnlocked) return;
         const silentSound = new Audio(
             "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
         );
         silentSound
             .play()
             .then(() => {
-                manager.isUnlocked = true;
+                setIsAudioUnlocked(true);
                 console.log("✅ Audio context unlocked successfully.");
-                // پس از باز شدن قفل، موسیقی صفحه فعلی را پخش کن
-                playMusic(view);
             })
             .catch((e) => console.error("Audio unlock failed.", e));
-    }, [view]); // وابستگی به view برای پخش موسیقی اولیه
+    }, [isAudioUnlocked]);
 
-    // تابع برای پخش موسیقی پس‌زمینه
     const playMusic = useCallback((musicName) => {
         const manager = audioManager.current;
-        // اگر قفل صدا باز نباشد یا موسیقی برای این بخش تعریف نشده باشد، خارج شو
-        if (!manager.isUnlocked || !manager.musicPaths[musicName]) {
-            // موسیقی در حال پخش را متوقف کن اگر به صفحه‌ای بدون موسیقی می‌رویم
+        if (!manager.musicPaths[musicName]) {
             if (manager.music) manager.music.pause();
+            manager.music = null;
             return;
         }
 
-        // اگر موسیقی در حال پخش همان موسیقی جدید است، کاری نکن
-        if (
-            manager.music &&
-            manager.music.src.includes(manager.musicPaths[musicName])
-        ) {
+        const newMusicPath = manager.musicPaths[musicName];
+        if (manager.music && manager.music.src.includes(newMusicPath)) {
             return;
         }
 
-        // توقف موسیقی قبلی
         if (manager.music) {
             manager.music.pause();
         }
 
-        // ساخت و پخش موسیقی جدید
-        manager.music = new Audio(manager.musicPaths[musicName]);
+        manager.music = new Audio(newMusicPath);
         manager.music.loop = true;
-        manager.music.play();
+        manager.music
+            .play()
+            .catch((e) => console.log("Music play interrupted or failed."));
     }, []);
 
-    // تابع برای پخش افکت‌های صوتی
-    const playSoundEffect = useCallback((soundName) => {
-        const manager = audioManager.current;
-        if (!manager.isUnlocked) return; // فقط اگر قفل باز است پخش کن
+    const playSoundEffect = useCallback(
+        (soundName) => {
+            if (!isAudioUnlocked) return;
+            const sound = audioManager.current.sfx[soundName];
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play();
+            }
+        },
+        [isAudioUnlocked]
+    );
 
-        const sound = manager.sfx[soundName];
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play();
-        }
-    }, []);
-
-    // این افکت با تغییر view، موسیقی را عوض می‌کند
     useEffect(() => {
-        playMusic(view);
-    }, [view, playMusic]);
+        if (isAudioUnlocked) {
+            playMusic(view);
+        }
+    }, [view, isAudioUnlocked, playMusic]);
 
-    // --- پایان بخش جدید و کامل مدیریت صدا ---
+    // --- پایان بخش اصلاح شده مدیریت صدا ---
+
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
         setMessage("Watch Closely...");
@@ -148,12 +136,8 @@ function App() {
                     Authorization: `Bearer ${token}`,
                 },
             });
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch next level from server.");
-            }
+            if (!response.ok) throw new Error("Failed to fetch next level");
             const data = await response.json();
-
             setSequence(data.sequence);
             setLevel(data.sequence.length);
             playSequence(data.sequence);
