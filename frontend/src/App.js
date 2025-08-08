@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+    useState,
+    useEffect,
+    useCallback,
+    useMemo,
+    useRef,
+} from "react";
 import Leaderboard from "./components/Leaderboard";
 import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
@@ -31,6 +37,52 @@ function App() {
     const [finalScore, setFinalScore] = useState(null);
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const soundsRef = useRef({
+        lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
+        game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
+        board: new Audio(`${process.env.PUBLIC_URL}/sounds/leaderboard.mp3`),
+        click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
+        gameover: new Audio(`${process.env.PUBLIC_URL}/sounds/gameover.wav`),
+    });
+    const currentMusicKey = useRef(null);
+
+    // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
+    useEffect(() => {
+        const sounds = soundsRef.current;
+        const musicToPlay = sounds[view];
+
+        // توقف موسیقی در حال پخش قبلی
+        if (currentMusicKey.current && sounds[currentMusicKey.current]) {
+            sounds[currentMusicKey.current].pause();
+            sounds[currentMusicKey.current].currentTime = 0; // بازگشت به ابتدای فایل
+        }
+
+        // پخش موسیقی جدید
+        if (musicToPlay && ["lobby", "game", "board"].includes(view)) {
+            musicToPlay.loop = true; // تکرار خودکار موسیقی پس‌زمینه
+            musicToPlay.play().catch((error) => {
+                console.log("Audio autoplay was prevented by the browser.");
+            });
+            currentMusicKey.current = view; // ذخیره نام موسیقی در حال پخش
+        } else {
+            currentMusicKey.current = null;
+        }
+
+        // هنگام بسته شدن کامپوننت، تمام صداها را متوقف کن
+        return () => {
+            Object.values(sounds).forEach((sound) => sound.pause());
+        };
+    }, [view]); // این افکت فقط زمانی اجرا می‌شود که view تغییر کند
+
+    // تابع کمکی برای پخش افکت‌های صوتی
+    const playSoundEffect = (soundName) => {
+        const sound = soundsRef.current[soundName];
+        if (sound) {
+            sound.currentTime = 0; // برای پخش مجدد سریع
+            sound.play().catch((error) => console.log("SFX play failed."));
+        }
+    };
 
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
@@ -74,6 +126,8 @@ function App() {
 
     const handleGameOver = useCallback(
         async (score) => {
+            playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
+
             console.log(
                 `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
                 "color: #DC143C;"
@@ -113,6 +167,7 @@ function App() {
     const handlePadClick = useCallback(
         (color) => {
             if (!isPlayerTurn) return;
+            playSoundEffect("click"); // <--- پخش صدای کلیک
 
             const newPlayerSequence = [...playerSequence, color];
             setPlayerSequence(newPlayerSequence);
@@ -146,6 +201,9 @@ function App() {
 
     const startGame = useCallback(
         async (eventId) => {
+            Object.values(soundsRef.current).forEach((sound) => {
+                sound.load(); // لود کردن صداها
+            });
             if (!isAuthenticated || !token) {
                 setError("Please authenticate first");
                 setView("auth");
