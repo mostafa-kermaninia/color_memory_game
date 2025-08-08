@@ -41,7 +41,6 @@ function App() {
     const soundsRef = useRef({
         lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
         game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
-        board: new Audio(`${process.env.PUBLIC_URL}/sounds/leaderboard.mp3`),
         click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
         gameover: new Audio(`${process.env.PUBLIC_URL}/sounds/gameover.wav`),
     });
@@ -59,7 +58,7 @@ function App() {
         }
 
         // پخش موسیقی جدید
-        if (musicToPlay && ["lobby", "game", "board"].includes(view)) {
+        if (musicToPlay && ["lobby", "game", "lobby"].includes(view)) {
             musicToPlay.loop = true; // تکرار خودکار موسیقی پس‌زمینه
             musicToPlay.play().catch((error) => {
                 console.log("Audio autoplay was prevented by the browser.");
