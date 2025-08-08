@@ -41,16 +41,14 @@ function App() {
     const soundsRef = useRef({
         lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
         game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
-        click: new Audio(`${process.env.PUBLIC_URL}/sounds/click.wav`),
-        gameover: new Audio(`${process.env.PUBLIC_URL}/sounds/gameover.wav`),
     });
     const currentMusicKey = useRef(null);
 
     // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
     useEffect(() => {
         const sounds = soundsRef.current;
-        const musicToPlay = sounds[view];
-
+        const musicKey = view === "board" ? "lobby" : view;
+        const musicToPlay = sounds[musicKey];
         // توقف موسیقی در حال پخش قبلی
         if (currentMusicKey.current && sounds[currentMusicKey.current]) {
             sounds[currentMusicKey.current].pause();
@@ -58,7 +56,7 @@ function App() {
         }
 
         // پخش موسیقی جدید
-        if (musicToPlay && ["lobby", "game", "lobby"].includes(view)) {
+        if (musicToPlay && ["lobby", "game", "board"].includes(view)) {
             musicToPlay.loop = true; // تکرار خودکار موسیقی پس‌زمینه
             musicToPlay.play().catch((error) => {
                 console.log("Audio autoplay was prevented by the browser.");
@@ -73,15 +71,6 @@ function App() {
             Object.values(sounds).forEach((sound) => sound.pause());
         };
     }, [view]); // این افکت فقط زمانی اجرا می‌شود که view تغییر کند
-
-    // تابع کمکی برای پخش افکت‌های صوتی
-    // const playSoundEffect = (soundName) => {
-    //     const sound = soundsRef.current[soundName];
-    //     if (sound) {
-    //         sound.currentTime = 0; // برای پخش مجدد سریع
-    //         sound.play().catch((error) => console.log("SFX play failed."));
-    //     }
-    // };
 
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
