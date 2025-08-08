@@ -49,7 +49,7 @@ const authenticateToken = (req, res, next) => {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            logger.warn(`JWT verification failed: ${err.message}`);
+            logger.error(`JWT verification failed: ${err.message}`);
             return res
                 .status(403)
                 .json({ message: "Invalid or expired token" });
