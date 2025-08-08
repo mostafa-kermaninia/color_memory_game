@@ -72,17 +72,17 @@ async function findAndRewardTopPlayers(eventId) {
         }
         
         // Step 4: Send consolation messages to everyone else
-        for (const participant of allParticipants) {
-            const userId = participant.userTelegramId;
-            // Check if this user is NOT in the winners set
-            if (!winnerIds.has(userId)) {
-                const user = userMap[userId];
-                const userName = user?.firstName || `Player ${userId}`;
+        // for (const participant of allParticipants) {
+        //     const userId = participant.userTelegramId;
+        //     // Check if this user is NOT in the winners set
+        //     if (!winnerIds.has(userId)) {
+        //         const user = userMap[userId];
+        //         const userName = user?.firstName || `Player ${userId}`;
                 
-                logger.info(`Processing NON-WINNER: User ${userId} (${userName}) with score ${participant.max_score}`);
-                await sendConsolationMessage(userId, userName, participant.max_score);
-            }
-        }
+        //         logger.info(`Processing NON-WINNER: User ${userId} (${userName}) with score ${participant.max_score}`);
+        //         await sendConsolationMessage(userId, userName, participant.max_score);
+        //     }
+        // }
 
         logger.info(`--- Reward Process Finished for Event: ${eventId} ---`);
 
