@@ -237,13 +237,15 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     logger.info(`[start-game] User ${userId} is starting a new game.`);
 
+
+        // ایجاد یک دنباله کاملاً جدید به طول ۱
+    const sequence = generateRandomSequence(1);
+
     // تنظیم سطح بازی روی ۱
     // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
     gameSessions[userId] = { level: 1, sequence: sequence };
     MainTimeManager.addPlayer(userId, eventId);
     MainTimeManager.runTimer(userId);
-    // ایجاد یک دنباله کاملاً جدید به طول ۱
-    const sequence = generateRandomSequence(1);
 
     res.json({ status: "success", sequence: sequence });
 });
