@@ -263,7 +263,7 @@ app.post("/api/runTimer", authenticateToken, (req, res) => {
 
     logger.info(`[start-timer] User ${userId} is answering.`);
 
-    res.json({ status: "success", sequence: sequence, time: timePerRound * gameSessions[userId].level });
+    res.json({ status: "success", time: timePerRound * gameSessions[userId].level });
 });
 
 app.post("/api/validate-move", authenticateToken, (req, res) => {
