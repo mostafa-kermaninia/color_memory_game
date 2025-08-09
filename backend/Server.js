@@ -160,6 +160,8 @@ app.post("/api/next-level", authenticateToken, (req, res) => {
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score1, eventId } = req.body;
     const userId = req.user.userId;
+    if (!gameSessions[userId])
+        return ;
     const userSession = gameSessions[userId];
     const score = userSession.level - 1;
 
