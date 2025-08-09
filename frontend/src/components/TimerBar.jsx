@@ -15,7 +15,7 @@ export default function TimerBar({ total, left }) {
   const barColor = left > 2 * total / 3 ? colors.green : left > total / 3 ? colors.yellow : colors.red;
 
   return (
-    <div className="absolute bottom-8 w-11/12 left-1/2 -translate-x-1/2 h-2 bg-gray-200 rounded-full overflow-hidden">
+    <div className="absolute bottom-20 w-11/12 left-1/2 -translate-x-1/2 h-2 bg-gray-200 rounded-full overflow-hidden">
     <motion.div
     className="h-full rounded-full"
     initial={{ width: "100%" }}
