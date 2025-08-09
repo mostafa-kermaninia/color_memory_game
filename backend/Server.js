@@ -257,7 +257,7 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     try {
-
+        handleGameOver(userId);
 
         logger.info(
             `Score ${score} saved for user ${userId} in event ${
