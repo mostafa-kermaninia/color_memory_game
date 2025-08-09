@@ -87,7 +87,7 @@ class TimeManager {
       if (player.time_left < 0) {
         // به جای logger.info، از console.log برای نمایش پیام استفاده می‌کنیم.
         console.log(
-          `Player ${playerId} server-side timer expired. Triggering final save...`
+          `Player ${userId} server-side timer expired. Triggering final save...`
         );
         this.timeHandler(userId);
         return;
@@ -100,7 +100,8 @@ class TimeManager {
   }
 
   stopTimer(userId){
-    this.players[userId].should_stop = true;
+    if (this.players[userId])
+        this.players[userId].should_stop = true;
   }
 
   // می‌توانید متدهای دیگری مثل `addPlayer`، `startGame` و... را هم اضافه کنید.
