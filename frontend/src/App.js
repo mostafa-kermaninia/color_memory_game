@@ -346,22 +346,22 @@ function App() {
         }
     }, [authenticateUser, token, userData]);
 
-    useEffect(() => {
-        clearResources();
-        setTimeLeft(level * 5);
+    // useEffect(() => {
+    //     clearResources();
+    //     setTimeLeft(level * 5);
 
-        timerId.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleTimeout();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    },
-    [level, clearResources, handleTimeout]
-    );
+    //     timerId.current = setInterval(() => {
+    //         setTimeLeft((prev) => {
+    //             if (prev <= 1) {
+    //                 handleTimeout();
+    //                 return 0;
+    //             }
+    //             return prev - 1;
+    //         });
+    //     }, 1000);
+    // },
+    // [level, clearResources, handleTimeout]
+    // );
 
 
     // frontend/src/App.js
