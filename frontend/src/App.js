@@ -218,7 +218,7 @@ function App() {
         setIsPlayerTurn(true);
         setPlayerSequence([]);
         /////////////////////
-    }, []);
+    }, [API_BASE, token, eventId, runTimer, level, handleGameOver]);
 
     const handlePadClick = useCallback(
         async (color) => {
