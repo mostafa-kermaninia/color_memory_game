@@ -170,7 +170,10 @@ class TimeManager {
     }
 
     deletePlayer(userId) {
-        if (this.players[userId]) delete this.players[userId];
+        if (this.players[userId]) {
+            clearTimeout(this.players[userId].timer);
+            delete this.players[userId];
+        }
     }
 }
 const MainTimeManager = new TimeManager();
@@ -373,6 +376,7 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
     try {
         const user = req.user; // اطلاعات کاربر از توکن
         const score = gameSessions[user.userId] ? gameSessions[user.userId].level - 1 :
+        MainTimeManager.deletePlayer(user.userId);
             endSessions[user.userId].level - 1
         const result = {
             status: "game_over",

@@ -66,10 +66,10 @@ function App() {
         async (score) => {
             // playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
 
-            console.log(
-                `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
-                "color: #DC143C;"
-            );
+            // console.log(
+            //     `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
+            //     "color: #DC143C;"
+            // );
 
             setMessage(`You lose! Your reach level ${score}`);
             setFinalScore(score);
