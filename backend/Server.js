@@ -308,24 +308,40 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
 });
 
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
-    const { score1, eventId } = req.body;
+    // ۱. نام متغیر ورودی را از score1 به score تغییر می‌دهیم تا با فرانت‌اند هماهنگ باشد
+    const { score, eventId } = req.body;
     const userId = req.user.userId;
 
+    // ۲. منطق تابع را بازنویسی می‌کنیم تا امتیاز را مستقیماً از ورودی بخواند و ذخیره کند
     try {
-        const score = handleGameOver(userId, eventId).score;
+        // اعتبار سنجی امتیاز
+        if (typeof score !== "number" || score < 0) {
+            logger.error(
+                `Invalid score received in /api/gameOver for user ${userId}: ${score}`
+            );
+            return res
+                .status(400)
+                .json({ status: "error", message: "Invalid score." });
+        }
+
+        // ذخیره مستقیم امتیاز در دیتابیس
+        await Score.create({
+            score: score,
+            userTelegramId: userId,
+            eventId: eventId || null,
+        });
 
         logger.info(
-            `Score ${score} saved for user ${userId} in event ${
-                eventId || "Free Play"
-            }`
+            `Score ${score} saved successfully for user ${userId} via /api/gameOver.`
         );
+
         res.status(201).json({
             status: "success",
             message: "Score saved successfully.",
         });
     } catch (error) {
         logger.error(
-            `Failed to save score for user ${userId}: ${error.message}`
+            `Failed to save score for user ${userId} via /api/gameOver: ${error.message}`
         );
         res.status(500).json({
             status: "error",
