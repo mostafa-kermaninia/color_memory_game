@@ -107,24 +107,6 @@ function App() {
         timerId.current = null;
     }, []);
 
-    const runTimer = useCallback(async (time) =>{
-        clearResources();
-        setTimeLeft(time);
-
-        timerId.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleTimeout();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    },
-    [level, clearResources, handleTimeout]
-    );
-
-
     const handleTimeout = useCallback(async () => {
         try {
             // try to display the leaderboard.
@@ -152,6 +134,24 @@ function App() {
             handleGameOver(level - 1); // Fallback to end the game
         }
     }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
+
+    const runTimer = useCallback(async (time) =>{
+        clearResources();
+        setTimeLeft(time);
+
+        timerId.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleTimeout();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    },
+    [level, clearResources, handleTimeout]
+    );
+
 
     useEffect(() => {
         const sounds = soundsRef.current;
