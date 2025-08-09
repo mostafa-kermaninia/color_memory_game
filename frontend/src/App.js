@@ -5,7 +5,7 @@ import React, {
     useMemo,
     useRef,
 } from "react";
-import TimerCircle from "./components/TimerCircle";
+import TimerBar from "./components/TimerBar";
 import Leaderboard from "./components/Leaderboard";
 import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
@@ -40,6 +40,7 @@ function App() {
     const [finalScore, setFinalScore] = useState(null);
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const ROUND_TIME = 5;
 
     const soundsRef = useRef({
         lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
@@ -521,7 +522,7 @@ function App() {
                         litPad={litPad}
                         playerTurn={isPlayerTurn}
                     />
-                    <TimerCircle total={level * 5} left={timeLeft} />
+                    <TimerBar total={level * ROUND_TIME} left={timeLeft} />
                 </div>
             ),
         [view, message, level, handlePadClick, litPad, isPlayerTurn, timeLeft]
