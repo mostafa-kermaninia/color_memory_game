@@ -106,7 +106,9 @@ class TimeManager {
     }
 
     timeHandler(userId) {
-        clearTimeout(this.players[userId].timer);
+        if (!this.players[userId])
+            return;
+        // clearTimeout(this.players[userId].timer);
         console.log(`Time for user ${userId} has expired. Saving score...`);
         endSessions[userId] = { level: gameSessions[userId].level };
         handleGameOver(userId, this.players[userId].eventId ? this.players[userId].eventId : null);
