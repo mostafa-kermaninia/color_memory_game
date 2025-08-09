@@ -106,6 +106,7 @@ class TimeManager {
     }
 
     timeHandler(userId) {
+        clearTimeout(this.players[userId].timer);
         console.log(`Time for user ${userId} has expired. Saving score...`);
         endSessions[userId] = { level: gameSessions[userId].level };
         handleGameOver(userId, this.players[userId].eventId ? this.players[userId].eventId : null);
@@ -378,11 +379,13 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
         const score = gameSessions[user.userId] ? gameSessions[user.userId].level - 1 :
             endSessions[user.userId].level - 1;
         
-        MainTimeManager.deletePlayer(user.userId);
+        MainTimeManager.timeHandler(user.userId);
         const result = {
             status: "game_over",
             score: score,
         };
+        if (gameSessions[user.userId])
+            delete gameSessions[user.userId];
         if (endSessions[user.userId])
             delete endSessions[user.userId];
 
