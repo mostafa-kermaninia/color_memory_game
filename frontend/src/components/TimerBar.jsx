@@ -12,7 +12,7 @@ export default function TimerBar({ total, left }) {
   };
 
   // Determine the current color based on the time remaining
-  const barColor = left > 5 ? colors.green : left > 3 ? colors.yellow : colors.red;
+  const barColor = left > 2 * total / 3 ? colors.green : left > total / 3 ? colors.yellow : colors.red;
 
   return (
     <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
