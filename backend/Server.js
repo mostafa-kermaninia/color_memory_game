@@ -238,8 +238,8 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     logger.info(`[start-game] User ${userId} is starting a new game.`);
 
     // تنظیم سطح بازی روی ۱
-    gameSessions[userId] = { level: 1 };
-
+    // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
+    gameSessions[userId] = { level: 1, sequence: sequence };
     MainTimeManager.addPlayer(userId, eventId);
     MainTimeManager.runTimer(userId);
     // ایجاد یک دنباله کاملاً جدید به طول ۱
