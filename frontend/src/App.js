@@ -142,14 +142,14 @@ function App() {
 
         timerId.current = setInterval(() => {
             setTimeLeft((prev) => {
-                if (prev <= 1) {
+                if (prev <= 0.01) {
                     clearResources();
                     handleTimeout();
                     return 0;
                 }
-                return prev - 1;
+                return prev - 0.01;
             });
-        }, 1000);
+        }, 10);
     },
     [level, clearResources, handleTimeout]
     );
