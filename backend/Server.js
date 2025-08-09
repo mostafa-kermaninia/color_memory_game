@@ -100,8 +100,10 @@ class TimeManager {
   }
 
   stopTimer(userId){
-    if (this.players[userId])
+    if (this.players[userId]){
+        clearTimeout(this.players[userId].timer);
         this.players[userId].should_stop = true;
+    }
   }
 
   addPlayer(userId, eventId) {
@@ -115,8 +117,10 @@ class TimeManager {
   }
 
   updatePlayerTime(userId) {
-    clearTimeout(this.players[userId].timer);
-    this.players[userId].time_left = gameSessions[userId].level * 2;
+    if (this.players[userId]){
+        clearTimeout(this.players[userId].timer);
+        this.players[userId].time_left = gameSessions[userId].level * 2;
+    }
   }
 
   deletePlayer(userId){
@@ -146,7 +150,7 @@ const handleGameOver = async (userId, eventId) => {
 
     // اعتبار سنجی امتیاز
     if (typeof score !== "number" || score < 0) {
-        logger.warn(`Invalid score received for user ${userId}: ${score}`);
+        logger.error(`Invalid score received for user ${userId}: ${score}`);
         return res
             .status(400)
             .json({ status: "error", message: "Invalid score." });
