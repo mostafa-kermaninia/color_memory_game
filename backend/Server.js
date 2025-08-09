@@ -19,7 +19,10 @@ const endSessions = {};
 const colors = ["green", "red", "yellow", "blue"];
 
 const generateRandomSequence = (length) => {
-    return Array.from({ length }, () => colors[Math.floor(Math.random() * colors.length)]);
+    return Array.from(
+        { length },
+        () => colors[Math.floor(Math.random() * colors.length)]
+    );
 };
 // --- پیکربندی CORS (بدون تغییر) ---
 const allowedOrigins = [
@@ -61,80 +64,77 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-
 class TimeManager {
-  constructor() {
-    this.players = {}; 
-  }
-
-  timeHandler(userId) {
-    console.log(`Time for user ${userId} has expired. Saving score...`);
-    endSessions[userId] = { level: gameSessions[userId].level };
-    handleGameOver(userId, this.players[userId].eventId);
-  }
-
-  runTimer(userId) {
-    const player = this.players[userId];
-    if (!player) return;
-
-    player.should_stop = false;
-
-    const tick = () => {
-      if (!player || player.should_stop || !player.game_active) {
-        return;
-      }
-
-      player.time_left -= 1;
-
-      if (player.time_left < 0) {
-        // به جای logger.info، از console.log برای نمایش پیام استفاده می‌کنیم.
-        console.log(
-          `Player ${userId} server-side timer expired. Triggering final save...`
-        );
-        this.timeHandler(userId);
-        return;
-      }
-
-      player.timer = setTimeout(tick, 1000);
-    };
-
-    player.timer = setTimeout(tick, 1000);
-  }
-
-  stopTimer(userId){
-    if (this.players[userId]){
-        clearTimeout(this.players[userId].timer);
-        this.players[userId].should_stop = true;
+    constructor() {
+        this.players = {};
     }
-  }
 
-  addPlayer(userId, eventId) {
-    this.players[userId] = {
-      eventId: eventId,
-      game_active: true,
-      time_left: gameSessions[userId].level * 5, // for test 5 sec per round
-      should_stop: false,
-      timer: null
-    };
-  }
-
-  updatePlayerTime(userId) {
-    if (this.players[userId]){
-        clearTimeout(this.players[userId].timer);
-        this.players[userId].time_left = gameSessions[userId].level * 2;
+    timeHandler(userId) {
+        console.log(`Time for user ${userId} has expired. Saving score...`);
+        endSessions[userId] = { level: gameSessions[userId].level };
+        handleGameOver(userId, this.players[userId].eventId);
     }
-  }
 
-  deletePlayer(userId){
-    if (this.players[userId])
-        delete this.players[userId];
-  }
+    runTimer(userId) {
+        const player = this.players[userId];
+        if (!player) return;
+
+        player.should_stop = false;
+
+        const tick = () => {
+            if (!player || player.should_stop || !player.game_active) {
+                return;
+            }
+
+            player.time_left -= 1;
+
+            if (player.time_left < 0) {
+                // به جای logger.info، از console.log برای نمایش پیام استفاده می‌کنیم.
+                console.log(
+                    `Player ${userId} server-side timer expired. Triggering final save...`
+                );
+                this.timeHandler(userId);
+                return;
+            }
+
+            player.timer = setTimeout(tick, 1000);
+        };
+
+        player.timer = setTimeout(tick, 1000);
+    }
+
+    stopTimer(userId) {
+        if (this.players[userId]) {
+            clearTimeout(this.players[userId].timer);
+            this.players[userId].should_stop = true;
+        }
+    }
+
+    addPlayer(userId, eventId) {
+        this.players[userId] = {
+            eventId: eventId,
+            game_active: true,
+            time_left: gameSessions[userId].level * 5, // for test 5 sec per round
+            should_stop: false,
+            timer: null,
+        };
+    }
+
+    updatePlayerTime(userId) {
+        if (this.players[userId]) {
+            clearTimeout(this.players[userId].timer);
+            this.players[userId].time_left = gameSessions[userId].level * 2;
+        }
+    }
+
+    deletePlayer(userId) {
+        if (this.players[userId]) delete this.players[userId];
+    }
 }
 const MainTimeManager = new TimeManager();
 
 const handleGameOver = async (userId, eventId) => {
-    if (!gameSessions[userId])
-        return ;
+    if (!gameSessions[userId]) return;
     const userSession = gameSessions[userId];
     const score = userSession.level - 1;
 
@@ -166,8 +166,7 @@ const handleGameOver = async (userId, eventId) => {
     });
 
     return score;
-}
-
+};
 
 app.post("/api/telegram-auth", async (req, res) => {
     // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
@@ -245,35 +244,62 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     MainTimeManager.runTimer(userId);
     // ایجاد یک دنباله کاملاً جدید به طول ۱
     const sequence = generateRandomSequence(1);
-    
 
     res.json({ status: "success", sequence: sequence });
 });
 
-app.post("/api/next-level", authenticateToken, (req, res) => {
+// --- ENDPOINT جدید و امن: اعتبارسنجی حرکت کاربر ---
+app.post("/api/validate-move", authenticateToken, (req, res) => {
     const userId = req.user.userId;
-    const userSession = gameSessions[userId];
-    MainTimeManager.stopTimer(userId);
+    const { playerSequence } = req.body; // دنباله ارسالی از فرانت‌اند
 
-    if (!userSession) {
-        logger.error(`[next-level] No active game session found for user ${userId}.`);
-        return res.status(404).json({ status: "error", message: "No active game found." });
+    const userSession = gameSessions[userId];
+
+    // اگر سشن بازی وجود نداشت یا دنباله ارسالی معتبر نبود، خطا بده
+    if (!userSession || !Array.isArray(playerSequence)) {
+        logger.warn(`[validate-move] Invalid request for user ${userId}.`);
+        return res
+            .status(400)
+            .json({ status: "error", message: "Invalid request." });
     }
 
-    // افزایش سطح بازیکن
-    userSession.level += 1;
-    const newLevel = userSession.level;
+    const correctSequence = userSession.sequence;
 
-    // ایجاد یک دنباله کاملاً جدید و تصادفی به طول سطح جدید
-    const newSequence = generateRandomSequence(newLevel);
-    MainTimeManager.updatePlayerTime(userId);
-    MainTimeManager.runTimer(userId);
+    // مقایسه دو آرایه به صورت رشته‌ای
+    const isCorrect =
+        JSON.stringify(playerSequence) === JSON.stringify(correctSequence);
 
-    logger.info(`[next-level] User ${userId} advanced to level ${newLevel}.`);
-    
-    // ارسال دنباله جدید به کاربر
-    res.json({ status: "success", sequence: newSequence });
+    if (isCorrect) {
+        // --- اگر درست بود: برو به مرحله بعد ---
+        const nextColor = colors[Math.floor(Math.random() * colors.length)];
+        userSession.sequence.push(nextColor);
+
+        logger.info(
+            `[validate-move] User ${userId} CORRECT. New sequence length: ${userSession.sequence.length}`
+        );
+
+        // ارسال دنباله کامل و جدید به فرانت‌اند
+        res.json({
+            status: "success",
+            action: "next_level",
+            sequence: userSession.sequence,
+        });
+    } else {
+        // --- اگر اشتباه بود: بازی تمام است ---
+        logger.info(
+            `[validate-move] User ${userId} FAILED. Expected ${correctSequence}, got ${playerSequence}`
+        );
+
+        // سشن بازی کاربر را پاک می‌کنیم
+        delete gameSessions[userId];
+
+        res.json({
+            status: "success",
+            action: "game_over",
+        });
+    }
 });
+
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score1, eventId } = req.body;
     const userId = req.user.userId;
@@ -305,9 +331,9 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
     try {
         const user = req.user; // اطلاعات کاربر از توکن
         const result = {
-                    status: "game_over",
-                    score: endSessions[user.userId].level - 1,
-                };
+            status: "game_over",
+            score: endSessions[user.userId].level - 1,
+        };
         delete endSessions[user.userId];
 
         res.json(result);
@@ -466,10 +492,11 @@ app.use(express.static(path.join(__dirname, "../frontend/build")));
 // مدیریت روت اصلی با هدرهای ضد کش برای فایل index.html
 app.get("*", (req, res) => {
     res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
+        "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+        "Surrogate-Control": "no-store",
     });
     res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
 });

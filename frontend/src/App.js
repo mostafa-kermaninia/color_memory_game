@@ -144,31 +144,6 @@ function App() {
         setPlayerSequence([]);
     }, []);
 
-    const fetchNextLevel = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_BASE}/next-level`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch next level from server.");
-            }
-            const data = await response.json();
-
-            setSequence(data.sequence);
-            setLevel(data.sequence.length); // سطح بازی برابر با طول دنباله است
-            playSequence(data.sequence);
-        } catch (err) {
-            console.error("Error fetching next level:", err);
-            setError("Connection error, please try again.");
-            setView("lobby"); // بازگشت به لابی در صورت خطا
-        }
-    }, [token, playSequence]);
-
     const handleGameOver = useCallback(
         async (score) => {
             // playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
@@ -210,36 +185,61 @@ function App() {
     );
 
     const handlePadClick = useCallback(
-        (color) => {
+        async (color) => {
             if (!isPlayerTurn) return;
-            // playSoundEffect("click"); // <--- پخش صدای کلیک
+
+            // افکت صوتی و نمایش پد روشن شده مثل قبل
+            // playSoundEffect("click");
+            setLitPad(color);
+            setTimeout(() => setLitPad(null), 200);
 
             const newPlayerSequence = [...playerSequence, color];
             setPlayerSequence(newPlayerSequence);
 
-            setLitPad(color);
-            setTimeout(() => setLitPad(null), 200);
-
-            if (
-                newPlayerSequence[newPlayerSequence.length - 1] !==
-                sequence[newPlayerSequence.length - 1]
-            ) {
-                handleGameOver(level - 1); // امتیاز برابر با سطح قبلی است
+            // --- شروع منطق جدید ---
+            // اگر کاربر هنوز تمام دنباله را وارد نکرده، منتظر بمان
+            if (newPlayerSequence.length < sequence.length) {
                 return;
             }
 
-            // اگر کاربر دنباله را کامل و درست وارد کرد
-            if (newPlayerSequence.length === sequence.length) {
-                setIsPlayerTurn(false); // نوبت بازیکن تمام می‌شود
-                setTimeout(fetchNextLevel, 500); // درخواست مرحله بعد از سرور
+            // وقتی کاربر تمام دنباله را وارد کرد، آن را برای اعتبارسنجی به سرور بفرست
+            setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
+
+            try {
+                const response = await fetch(`${API_BASE}/validate-move`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ playerSequence: newPlayerSequence }),
+                });
+                const data = await response.json();
+
+                if (data.action === "next_level") {
+                    // اگر سرور گفت "مرحله بعد"
+                    setSequence(data.sequence);
+                    setLevel(data.sequence.length);
+                    playSequence(data.sequence);
+                } else if (data.action === "game_over") {
+                    // اگر سرور گفت "بازی تمام"
+                    handleGameOver(level); // امتیاز برابر با سطح فعلی است
+                }
+            } catch (err) {
+                console.error("Error validating move:", err);
+                setError("Connection error. Game over.");
+                handleGameOver(level); // در صورت خطا، بازی تمام می‌شود
             }
+            // --- پایان منطق جدید ---
         },
         [
             isPlayerTurn,
             playerSequence,
             sequence,
             level,
-            fetchNextLevel,
+            playSoundEffect,
+            token,
+            playSequence,
             handleGameOver,
         ]
     );
