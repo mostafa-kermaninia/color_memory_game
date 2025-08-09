@@ -283,6 +283,8 @@ function App() {
             token,
             playSequence,
             handleGameOver,
+            clearResources,
+            setStopTimer,
         ]
     );
 
