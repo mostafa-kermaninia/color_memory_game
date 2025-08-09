@@ -151,6 +151,8 @@ const handleGameOver = async (userId) => {
         // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
         eventId: eventId || null,
     });
+
+    return score;
 }
 
 
@@ -257,7 +259,7 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     try {
-        handleGameOver(userId);
+        const score = handleGameOver(userId);
 
         logger.info(
             `Score ${score} saved for user ${userId} in event ${
