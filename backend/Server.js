@@ -15,6 +15,7 @@ const app = express();
 app.use(express.json());
 
 const gameSessions = {};
+const endSessions = {};
 const colors = ["green", "red", "yellow", "blue"];
 
 const generateRandomSequence = (length) => {
@@ -68,6 +69,7 @@ class TimeManager {
 
   timeHandler(userId) {
     console.log(`Time for user ${userId} has expired. Saving score...`);
+    endSessions[userId] = { level: gameSessions[userId].level };
     handleGameOver(userId, this.players[userId].eventId);
   }
 
@@ -295,6 +297,28 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
         res.status(500).json({
             status: "error",
             message: "Could not save score due to a server error.",
+        });
+    }
+});
+
+app.post("/api/timeOut", authenticateToken, async (req, res) => {
+    try {
+        const user = req.user; // اطلاعات کاربر از توکن
+        const result = endSessions[user.userId].level;
+        delete endSessions[user.userId];
+
+        res.json(result);
+    } catch (e) {
+        logger.error(`API answer error: ${e.message}`, {
+            stack: e.stack,
+        });
+
+        res.status(500).json({
+            status: "error",
+            message: "Internal server error",
+            ...(process.env.NODE_ENV === "development" && {
+                details: e.message,
+            }),
         });
     }
 });

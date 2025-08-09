@@ -5,6 +5,7 @@ import React, {
     useMemo,
     useRef,
 } from "react";
+import TimerCircle from "./components/TimerCircle";
 import Leaderboard from "./components/Leaderboard";
 import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
@@ -27,10 +28,11 @@ function App() {
     );
     const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
     const [currentGameEventId, setCurrentGameEventId] = useState(null);
-
+    
     const [sequence, setSequence] = useState([]);
     const [playerSequence, setPlayerSequence] = useState([]);
     const [level, setLevel] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(0);
     const [isPlayerTurn, setIsPlayerTurn] = useState(false);
     const [litPad, setLitPad] = useState(null);
     const [message, setMessage] = useState("حافظه رنگ‌ها");
@@ -43,6 +45,43 @@ function App() {
         game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
     });
     const currentMusicKey = useRef(null);
+
+    const timerId = useRef(null);
+
+    const clearResources = useCallback(() => {
+        if (timerId.current) clearInterval(timerId.current);
+
+        timerId.current = null;
+    }, []);
+
+    const handleTimeout = useCallback(async () => {
+        try {
+            // try to display the leaderboard.
+            const response = await fetch(`${API_BASE}/timeOut`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`, // Pass the auth token
+                },
+            });
+
+            if (!response.ok) {
+                // If the backend call fails, still end the game on the frontend
+                console.error("Timeout API call failed");
+                handleGameOver(score); // Show leaderboard with the score we had
+                return;
+            }
+
+            const data = await response.json();
+            // Now, call handleGameOver with the CONFIRMED final score from the server
+            handleGameOver(data.final_score);
+            // ▲▲▲ END OF FIX ▲▲▲
+        } catch (error) {
+            console.error("Error during timeout handling:", error);
+            handleGameOver(score); // Fallback to end the game
+        }
+    }, [token, score, handleGameOver]); // Added `token` and `score` to dependency array
+
 
     // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
     useEffect(() => {
@@ -306,6 +345,25 @@ function App() {
             authenticateUser();
         }
     }, [authenticateUser, token, userData]);
+
+    useEffect(() => {
+        clearResources();
+        setTimeLeft(level * 5);
+
+        timerId.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleTimeout();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    },
+    [level, clearResources, handleTimeout]
+    );
+
+
     // frontend/src/App.js
 
     // frontend/src/App.js
@@ -427,9 +485,10 @@ function App() {
                         litPad={litPad}
                         playerTurn={isPlayerTurn}
                     />
+                    <TimerCircle total={level * 5} left={timeLeft} />
                 </div>
             ),
-        [view, message, level, handlePadClick, litPad, isPlayerTurn]
+        [view, message, level, handlePadClick, litPad, isPlayerTurn, timeLeft]
     );
 
     const leaderboardContent = useMemo(
