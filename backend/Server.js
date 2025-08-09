@@ -308,6 +308,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         res.json({
             status: "success",
             action: "game_over",
+            score: finalScore, // <-- این خط کلیدی است که مشکل را حل می‌کند
         });
     }
 });
