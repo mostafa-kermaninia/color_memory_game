@@ -61,28 +61,68 @@ function App() {
 
     const timerId = useRef(null);
 
+    const handleGameOver = useCallback(
+        async (score) => {
+            // playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
+
+            console.log(
+                `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
+                "color: #DC143C;"
+            );
+
+            setMessage(`You lose! Your reach level ${score}`);
+            setFinalScore(score);
+            setIsPlayerTurn(false);
+
+            // if (score > 0 && token) {
+            //     try {
+            //         await fetch(`${API_BASE}/gameOver`, {
+            //             method: "POST",
+            //             headers: {
+            //                 "Content-Type": "application/json",
+            //                 Authorization: `Bearer ${token}`,
+            //             },
+            //             body: JSON.stringify({
+            //                 score: score,
+            //                 eventId: currentGameEventId,
+            //             }),
+            //         });
+            //     } catch (err) {
+            //         console.error("Failed to save score:", err);
+            //         setError("Error in saving the score");
+            //     }
+            // }
+
+            setTimeout(() => {
+                setView("board");
+                setLeaderboardKey(Date.now());
+            }, 500);
+        },
+        [token, currentGameEventId]
+    );
+
     const clearResources = useCallback(() => {
         if (timerId.current) clearInterval(timerId.current);
 
         timerId.current = null;
     }, []);
 
-    // const runTimer = useCallback(async (time) =>{
-    //     clearResources();
-    //     setTimeLeft(time);
+    const runTimer = useCallback(async (time) =>{
+        clearResources();
+        setTimeLeft(time);
 
-    //     timerId.current = setInterval(() => {
-    //         setTimeLeft((prev) => {
-    //             if (prev <= 1) {
-    //                 handleTimeout();
-    //                 return 0;
-    //             }
-    //             return prev - 1;
-    //         });
-    //     }, 1000);
-    // },
-    // [level, clearResources, handleTimeout]
-    // );
+        timerId.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleTimeout();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    },
+    [level, clearResources, handleTimeout]
+    );
 
 
     const handleTimeout = useCallback(async () => {
@@ -161,46 +201,6 @@ function App() {
         setIsPlayerTurn(true);
         setPlayerSequence([]);
     }, []);
-
-    const handleGameOver = useCallback(
-        async (score) => {
-            // playSoundEffect("gameover"); // <--- پخش صدای پایان بازی
-
-            console.log(
-                `%c[handleGameOver] Game Over. Final Score to be saved: ${score}`,
-                "color: #DC143C;"
-            );
-
-            setMessage(`You lose! Your reach level ${score}`);
-            setFinalScore(score);
-            setIsPlayerTurn(false);
-
-            // if (score > 0 && token) {
-            //     try {
-            //         await fetch(`${API_BASE}/gameOver`, {
-            //             method: "POST",
-            //             headers: {
-            //                 "Content-Type": "application/json",
-            //                 Authorization: `Bearer ${token}`,
-            //             },
-            //             body: JSON.stringify({
-            //                 score: score,
-            //                 eventId: currentGameEventId,
-            //             }),
-            //         });
-            //     } catch (err) {
-            //         console.error("Failed to save score:", err);
-            //         setError("Error in saving the score");
-            //     }
-            // }
-
-            setTimeout(() => {
-                setView("board");
-                setLeaderboardKey(Date.now());
-            }, 500);
-        },
-        [token, currentGameEventId]
-    );
 
     const handlePadClick = useCallback(
         async (color) => {
