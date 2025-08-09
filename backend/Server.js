@@ -237,8 +237,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     logger.info(`[start-game] User ${userId} is starting a new game.`);
 
-
-        // ایجاد یک دنباله کاملاً جدید به طول ۱
+    // ایجاد یک دنباله کاملاً جدید به طول ۱
     const sequence = generateRandomSequence(1);
 
     // تنظیم سطح بازی روی ۱
@@ -259,7 +258,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
 
     // اگر سشن بازی وجود نداشت یا دنباله ارسالی معتبر نبود، خطا بده
     if (!userSession || !Array.isArray(playerSequence)) {
-        logger.warn(`[validate-move] Invalid request for user ${userId}.`);
+        logger.error(`[validate-move] Invalid request for user ${userId}.`);
         return res
             .status(400)
             .json({ status: "error", message: "Invalid request." });
@@ -273,11 +272,17 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
 
     if (isCorrect) {
         // --- اگر درست بود: برو به مرحله بعد ---
+        MainTimeManager.stopTimer(userId); // ۱. تایمر قبلی را متوقف کن
+
+        userSession.level += 1; // ۲. سطح بازیکن را افزایش بده
         const nextColor = colors[Math.floor(Math.random() * colors.length)];
         userSession.sequence.push(nextColor);
 
+        MainTimeManager.updatePlayerTime(userId); // ۳. زمان تایمر را برای مرحله جدید آپدیت کن
+        MainTimeManager.runTimer(userId); // ۴. تایمر جدید را استارت بزن
+
         logger.info(
-            `[validate-move] User ${userId} CORRECT. New sequence length: ${userSession.sequence.length}`
+            `[validate-move] User ${userId} CORRECT. New level: ${userSession.level}`
         );
 
         // ارسال دنباله کامل و جدید به فرانت‌اند
@@ -288,17 +293,15 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         });
     } else {
         // --- اگر اشتباه بود: بازی تمام است ---
+        MainTimeManager.stopTimer(userId); // تایمر را متوقف کن
+        MainTimeManager.deletePlayer(userId); // بازیکن را از مدیریت تایمر حذف کن
+
         logger.info(
             `[validate-move] User ${userId} FAILED. Expected ${correctSequence}, got ${playerSequence}`
         );
 
         // سشن بازی کاربر را پاک می‌کنیم
         delete gameSessions[userId];
-
-        res.json({
-            status: "success",
-            action: "game_over",
-        });
     }
 });
 
