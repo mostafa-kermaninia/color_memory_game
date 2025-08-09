@@ -249,14 +249,11 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     res.json({ status: "success", sequence: sequence });
 });
 
-// --- ENDPOINT جدید و امن: اعتبارسنجی حرکت کاربر ---
 app.post("/api/validate-move", authenticateToken, (req, res) => {
     const userId = req.user.userId;
-    const { playerSequence } = req.body; // دنباله ارسالی از فرانت‌اند
-
+    const { playerSequence } = req.body;
     const userSession = gameSessions[userId];
 
-    // اگر سشن بازی وجود نداشت یا دنباله ارسالی معتبر نبود، خطا بده
     if (!userSession || !Array.isArray(playerSequence)) {
         logger.error(`[validate-move] Invalid request for user ${userId}.`);
         return res
@@ -265,43 +262,48 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
     }
 
     const correctSequence = userSession.sequence;
-
-    // مقایسه دو آرایه به صورت رشته‌ای
     const isCorrect =
         JSON.stringify(playerSequence) === JSON.stringify(correctSequence);
 
     if (isCorrect) {
         // --- اگر درست بود: برو به مرحله بعد ---
-        MainTimeManager.stopTimer(userId); // ۱. تایمر قبلی را متوقف کن
+        MainTimeManager.stopTimer(userId);
 
-        userSession.level += 1; // ۲. سطح بازیکن را افزایش بده
-        const nextColor = colors[Math.floor(Math.random() * colors.length)];
-        userSession.sequence.push(nextColor);
+        // ۱. سطح بازیکن را افزایش بده
+        userSession.level += 1;
 
-        MainTimeManager.updatePlayerTime(userId); // ۳. زمان تایمر را برای مرحله جدید آپدیت کن
-        MainTimeManager.runTimer(userId); // ۴. تایمر جدید را استارت بزن
+        // ۲. یک دنباله کاملاً جدید و تصادفی با طول جدید بساز
+        const newSequence = generateRandomSequence(userSession.level);
+        userSession.sequence = newSequence; // دنباله جدید را ذخیره کن
+
+        MainTimeManager.updatePlayerTime(userId);
+        MainTimeManager.runTimer(userId);
 
         logger.info(
             `[validate-move] User ${userId} CORRECT. New level: ${userSession.level}`
         );
 
-        // ارسال دنباله کامل و جدید به فرانت‌اند
         res.json({
             status: "success",
             action: "next_level",
-            sequence: userSession.sequence,
+            sequence: newSequence, // ارسال دنباله کاملاً جدید به فرانت‌اند
         });
     } else {
         // --- اگر اشتباه بود: بازی تمام است ---
-        MainTimeManager.stopTimer(userId); // تایمر را متوقف کن
-        MainTimeManager.deletePlayer(userId); // بازیکن را از مدیریت تایمر حذف کن
-
         logger.info(
             `[validate-move] User ${userId} FAILED. Expected ${correctSequence}, got ${playerSequence}`
         );
 
-        // سشن بازی کاربر را پاک می‌کنیم
-        delete gameSessions[userId];
+        MainTimeManager.stopTimer(userId);
+        MainTimeManager.deletePlayer(userId);
+
+        // ۳. تابع پایان بازی را در همینجا فراخوانی کن تا امتیاز ذخیره شود
+        handleGameOver(userId, userSession.eventId);
+
+        res.json({
+            status: "success",
+            action: "game_over",
+        });
     }
 });
 
