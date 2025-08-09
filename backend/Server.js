@@ -68,7 +68,7 @@ class TimeManager {
 
   timeHandler(userId) {
     console.log(`Time for user ${userId} has expired. Saving score...`);
-    handleGameOver(userId);
+    handleGameOver(userId, this.players[userId].eventId);
   }
 
   runTimer(userId) {
@@ -99,9 +99,14 @@ class TimeManager {
     player.timer = setTimeout(tick, 1000);
   }
 
+  stopTimer(userId){
+    this.players[userId].should_stop = true;
+  }
+
   // می‌توانید متدهای دیگری مثل `addPlayer`، `startGame` و... را هم اضافه کنید.
-  addPlayer(userId) {
+  addPlayer(userId, eventId) {
     this.players[userId] = {
+      eventId: eventId,
       game_active: true,
       time_left: gameSessions[userId].level * 2, // به عنوان مثال، 60 ثانیه زمان اولیه
       should_stop: false,
@@ -110,6 +115,7 @@ class TimeManager {
   }
 
   updatePlayerTime(userId) {
+    clearTimeout(this.players[userId].timer);
     this.players[userId].time_left = gameSessions[userId].level * 2;
   }
 
@@ -118,6 +124,7 @@ class TimeManager {
         delete this.players[userId];
   }
 }
+const MainTimeManager = new TimeManager();
 
 const handleGameOver = async (userId, eventId) => {
     if (!gameSessions[userId])
@@ -221,14 +228,18 @@ app.post("/api/telegram-auth", async (req, res) => {
 });
 
 app.post("/api/start-game", authenticateToken, (req, res) => {
+    const { eventId } = req.body;
     const userId = req.user.userId;
     logger.info(`[start-game] User ${userId} is starting a new game.`);
 
     // تنظیم سطح بازی روی ۱
     gameSessions[userId] = { level: 1 };
 
+    MainTimeManager.addPlayer(userId, eventId);
+    MainTimeManager.runTimer(userId);
     // ایجاد یک دنباله کاملاً جدید به طول ۱
     const sequence = generateRandomSequence(1);
+    
 
     res.json({ status: "success", sequence: sequence });
 });
@@ -236,6 +247,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
 app.post("/api/next-level", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     const userSession = gameSessions[userId];
+    MainTimeManager.stopTimer(userId);
 
     if (!userSession) {
         logger.warn(`[next-level] No active game session found for user ${userId}.`);
@@ -248,6 +260,8 @@ app.post("/api/next-level", authenticateToken, (req, res) => {
 
     // ایجاد یک دنباله کاملاً جدید و تصادفی به طول سطح جدید
     const newSequence = generateRandomSequence(newLevel);
+    MainTimeManager.updatePlayerTime(userId);
+    MainTimeManager.runTimer(userId);
 
     logger.info(`[next-level] User ${userId} advanced to level ${newLevel}.`);
     
