@@ -67,22 +67,22 @@ function App() {
         timerId.current = null;
     }, []);
 
-    const runTimer = useCallback(async (time) =>{
-        clearResources();
-        setTimeLeft(time);
+    // const runTimer = useCallback(async (time) =>{
+    //     clearResources();
+    //     setTimeLeft(time);
 
-        timerId.current = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    handleTimeout();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    },
-    [level, clearResources, handleTimeout]
-    );
+    //     timerId.current = setInterval(() => {
+    //         setTimeLeft((prev) => {
+    //             if (prev <= 1) {
+    //                 handleTimeout();
+    //                 return 0;
+    //             }
+    //             return prev - 1;
+    //         });
+    //     }, 1000);
+    // },
+    // [level, clearResources, handleTimeout]
+    // );
 
 
     const handleTimeout = useCallback(async () => {
@@ -238,7 +238,7 @@ function App() {
                 if (data.action === "next_level") {
                     // اگر سرور گفت "مرحله بعد"
                     setTimeLeft(data.time);
-                    runTimer(data.time);
+                    // runTimer(data.time);
                     setSequence(data.sequence);
                     setLevel(data.sequence.length);
                     playSequence(data.sequence);
@@ -294,7 +294,7 @@ function App() {
                     throw new Error("Could not start the game.");
                 }
                 const data = await response.json();
-                runTimer(data.time);
+                // runTimer(data.time);
                 // تنظیم بازی با دنباله‌ی دریافت شده از سرور
                 setSequence(data.sequence);
                 setLevel(1); // بازی از مرحله ۱ شروع می‌شود
