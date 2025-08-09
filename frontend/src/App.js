@@ -206,7 +206,7 @@ function App() {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ eventId }), // ارسال eventId
+                    body: JSON.stringify({ currentGameEventId }), // ارسال eventId
             });
             const data = await response.json();
             runTimer(data.time);
@@ -218,7 +218,7 @@ function App() {
         setIsPlayerTurn(true);
         setPlayerSequence([]);
         /////////////////////
-    }, [API_BASE, token, eventId, runTimer, level, handleGameOver]);
+    }, [API_BASE, token, currentGameEventId, runTimer, level, handleGameOver]);
 
     const handlePadClick = useCallback(
         async (color) => {
