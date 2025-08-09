@@ -112,6 +112,11 @@ class TimeManager {
     }
 
     addPlayer(userId, eventId) {
+        logger.info(
+        `Adding user: ${userId} Timer ${
+            eventId
+        }`
+        );
         this.players[userId] = {
             eventId: eventId ? eventId : null,
             game_active: true,
