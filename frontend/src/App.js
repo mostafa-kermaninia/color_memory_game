@@ -200,13 +200,13 @@ function App() {
         }
         setMessage("Your turn!");
         try {
-            const response = await fetch(`${API_BASE}/validate-move`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ playerSequence: newPlayerSequence }),
+            const response = await fetch(`${API_BASE}/runTimer`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ eventId }), // ارسال eventId
             });
             const data = await response.json();
             runTimer(data.time);
@@ -243,13 +243,13 @@ function App() {
             setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
 
             try {
-                const response = await fetch(`${API_BASE}/runTimer`, {
+                const response = await fetch(`${API_BASE}/validate-move`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ eventId }), // ارسال eventId
+                    body: JSON.stringify({ playerSequence: newPlayerSequence }),
                 });
                 const data = await response.json();
 
