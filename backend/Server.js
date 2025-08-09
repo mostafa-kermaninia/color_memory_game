@@ -297,8 +297,13 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         MainTimeManager.stopTimer(userId);
         MainTimeManager.deletePlayer(userId);
 
-        // ۳. تابع پایان بازی را در همینجا فراخوانی کن تا امتیاز ذخیره شود
+        // امتیاز نهایی را محاسبه کن
+        const finalScore = userSession.level - 1;
+        // تابع پایان بازی را فراخوانی کن
         handleGameOver(userId, userSession.eventId);
+
+        // ۳. تابع پایان بازی را در همینجا فراخوانی کن تا امتیاز ذخیره شود
+        // handleGameOver(userId, userSession.eventId);
 
         res.json({
             status: "success",

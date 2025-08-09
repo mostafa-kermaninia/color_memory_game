@@ -157,24 +157,24 @@ function App() {
             setFinalScore(score);
             setIsPlayerTurn(false);
 
-            if (score > 0 && token) {
-                try {
-                    await fetch(`${API_BASE}/gameOver`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                            score: score,
-                            eventId: currentGameEventId,
-                        }),
-                    });
-                } catch (err) {
-                    console.error("Failed to save score:", err);
-                    setError("Error in saving the score");
-                }
-            }
+            // if (score > 0 && token) {
+            //     try {
+            //         await fetch(`${API_BASE}/gameOver`, {
+            //             method: "POST",
+            //             headers: {
+            //                 "Content-Type": "application/json",
+            //                 Authorization: `Bearer ${token}`,
+            //             },
+            //             body: JSON.stringify({
+            //                 score: score,
+            //                 eventId: currentGameEventId,
+            //             }),
+            //         });
+            //     } catch (err) {
+            //         console.error("Failed to save score:", err);
+            //         setError("Error in saving the score");
+            //     }
+            // }
 
             setTimeout(() => {
                 setView("board");
@@ -223,7 +223,7 @@ function App() {
                     playSequence(data.sequence);
                 } else if (data.action === "game_over") {
                     // اگر سرور گفت "بازی تمام"
-                    handleGameOver(level); // امتیاز برابر با سطح فعلی است
+                    handleGameOver(data.score);
                 }
             } catch (err) {
                 console.error("Error validating move:", err);
