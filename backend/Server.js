@@ -119,7 +119,7 @@ class TimeManager {
   }
 }
 
-const handleGameOver = async (userId) => {
+const handleGameOver = async (userId, eventId) => {
     if (!gameSessions[userId])
         return ;
     const userSession = gameSessions[userId];
@@ -259,7 +259,7 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     try {
-        const score = handleGameOver(userId);
+        const score = handleGameOver(userId, eventId);
 
         logger.info(
             `Score ${score} saved for user ${userId} in event ${
