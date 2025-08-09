@@ -237,7 +237,6 @@ function App() {
             playerSequence,
             sequence,
             level,
-            playSoundEffect,
             token,
             playSequence,
             handleGameOver,
