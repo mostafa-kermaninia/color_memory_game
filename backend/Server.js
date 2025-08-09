@@ -64,6 +64,41 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+const handleGameOver = async (userId, eventId) => {
+    if (!gameSessions[userId]) return;
+    const userSession = gameSessions[userId];
+    const score = userSession.level - 1;
+
+    // --- حذف سشن بازی کاربر پس از پایان بازی ---
+    if (gameSessions[userId]) {
+        delete gameSessions[userId];
+        logger.info(`[gameOver] Cleared game session for user ${userId}.`);
+    }
+
+    logger.info(
+        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
+            eventId || "Free Play"
+        }`
+    );
+
+    // اعتبار سنجی امتیاز
+    if (typeof score !== "number" || score < 0) {
+        logger.error(`Invalid score received for user ${userId}: ${score}`);
+        return res
+            .status(400)
+            .json({ status: "error", message: "Invalid score." });
+    }
+
+    await Score.create({
+        score: score,
+        userTelegramId: userId,
+        // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
+        eventId: eventId || null,
+    });
+
+    return score;
+};
+
 class TimeManager {
     constructor() {
         this.players = {};
@@ -138,41 +173,6 @@ class TimeManager {
     }
 }
 const MainTimeManager = new TimeManager();
-
-const handleGameOver = async (userId, eventId) => {
-    if (!gameSessions[userId]) return;
-    const userSession = gameSessions[userId];
-    const score = userSession.level - 1;
-
-    // --- حذف سشن بازی کاربر پس از پایان بازی ---
-    if (gameSessions[userId]) {
-        delete gameSessions[userId];
-        logger.info(`[gameOver] Cleared game session for user ${userId}.`);
-    }
-
-    logger.info(
-        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
-            eventId || "Free Play"
-        }`
-    );
-
-    // اعتبار سنجی امتیاز
-    if (typeof score !== "number" || score < 0) {
-        logger.error(`Invalid score received for user ${userId}: ${score}`);
-        return res
-            .status(400)
-            .json({ status: "error", message: "Invalid score." });
-    }
-
-    await Score.create({
-        score: score,
-        userTelegramId: userId,
-        // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
-        eventId: eventId || null,
-    });
-
-    return score;
-};
 
 app.post("/api/telegram-auth", async (req, res) => {
     // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
