@@ -33,7 +33,7 @@ function App() {
     const [sequence, setSequence] = useState([]);
     const [playerSequence, setPlayerSequence] = useState([]);
     const [level, setLevel] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(5);
     const [isPlayerTurn, setIsPlayerTurn] = useState(false);
     const [litPad, setLitPad] = useState(null);
     const [message, setMessage] = useState("حافظه رنگ‌ها");
@@ -199,8 +199,25 @@ function App() {
             await sleep(200);
         }
         setMessage("Your turn!");
+        try {
+            const response = await fetch(`${API_BASE}/validate-move`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ playerSequence: newPlayerSequence }),
+            });
+            const data = await response.json();
+            runTimer(data.time);
+        } catch (err) {
+            console.error("Error validating move:", err);
+            setError("Connection error. Game over.");
+            handleGameOver(level); // در صورت خطا، بازی تمام می‌شود
+        }
         setIsPlayerTurn(true);
         setPlayerSequence([]);
+        /////////////////////
     }, []);
 
     const handlePadClick = useCallback(
@@ -226,20 +243,19 @@ function App() {
             setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
 
             try {
-                const response = await fetch(`${API_BASE}/validate-move`, {
+                const response = await fetch(`${API_BASE}/runTimer`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ playerSequence: newPlayerSequence }),
+                    body: JSON.stringify({ eventId }), // ارسال eventId
                 });
                 const data = await response.json();
 
                 if (data.action === "next_level") {
                     // اگر سرور گفت "مرحله بعد"
                     setTimeLeft(data.time);
-                    runTimer(data.time);
                     setSequence(data.sequence);
                     setLevel(data.sequence.length);
                     playSequence(data.sequence);
@@ -295,7 +311,6 @@ function App() {
                     throw new Error("Could not start the game.");
                 }
                 const data = await response.json();
-                runTimer(data.time);
                 // تنظیم بازی با دنباله‌ی دریافت شده از سرور
                 setSequence(data.sequence);
                 setLevel(1); // بازی از مرحله ۱ شروع می‌شود

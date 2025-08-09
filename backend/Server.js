@@ -14,6 +14,7 @@ const { User, Score, sequelize } = require("./DataBase/models");
 const app = express();
 app.use(express.json());
 
+const timePerRound = 5;
 const gameSessions = {};
 const endSessions = {};
 const colors = ["green", "red", "yellow", "blue"];
@@ -155,7 +156,7 @@ class TimeManager {
         this.players[userId] = {
             eventId: eventId ? eventId : null,
             game_active: true,
-            time_left: gameSessions[userId].level * 5, // for test 5 sec per round
+            time_left: gameSessions[userId].level * timePerRound, // for test 5 sec per round
             should_stop: false,
             timer: null,
         };
@@ -164,7 +165,7 @@ class TimeManager {
     updatePlayerTime(userId) {
         if (this.players[userId]) {
             clearTimeout(this.players[userId].timer);
-            this.players[userId].time_left = gameSessions[userId].level * 5;
+            this.players[userId].time_left = gameSessions[userId].level * timePerRound;
         }
     }
 
@@ -250,26 +251,19 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
     gameSessions[userId] = { level: 1, sequence: sequence };
     MainTimeManager.addPlayer(userId, eventId);
-    MainTimeManager.runTimer(userId);
 
-    res.json({ status: "success", sequence: sequence, time: 5 });
+    res.json({ status: "success", sequence: sequence, time: timePerRound });
 });
 
 app.post("/api/runTimer", authenticateToken, (req, res) => {
     const { eventId } = req.body;
     const userId = req.user.userId;
-    logger.info(`[start-game] User ${userId} is starting a new game.`);
 
-    // ایجاد یک دنباله کاملاً جدید به طول ۱
-    const sequence = generateRandomSequence(1);
-
-    // تنظیم سطح بازی روی ۱
-    // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
-    gameSessions[userId] = { level: 1, sequence: sequence };
-    MainTimeManager.addPlayer(userId, eventId);
     MainTimeManager.runTimer(userId);
 
-    res.json({ status: "success", sequence: sequence, time: 5 });
+    logger.info(`[start-timer] User ${userId} is answering.`);
+
+    res.json({ status: "success", sequence: sequence, time: timePerRound * gameSessions[userId].level });
 });
 
 app.post("/api/validate-move", authenticateToken, (req, res) => {
@@ -298,7 +292,6 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         userSession.sequence = newSequence; // دنباله جدید را ذخیره کن
 
         MainTimeManager.updatePlayerTime(userId);
-        MainTimeManager.runTimer(userId);
 
         logger.info(
             `[validate-move] User ${userId} CORRECT. New level: ${userSession.level}`
@@ -307,7 +300,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         res.json({
             status: "success",
             action: "next_level",
-            time: gameSessions[userId].level * 5,
+            time: gameSessions[userId].level * timePerRound,
             sequence: newSequence, // ارسال دنباله کاملاً جدید به فرانت‌اند
         });
     } else {
