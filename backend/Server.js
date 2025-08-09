@@ -113,7 +113,7 @@ class TimeManager {
 
     addPlayer(userId, eventId) {
         this.players[userId] = {
-            eventId: eventId,
+            eventId: eventId ? eventId : null,
             game_active: true,
             time_left: gameSessions[userId].level * 5, // for test 5 sec per round
             should_stop: false,
@@ -124,7 +124,7 @@ class TimeManager {
     updatePlayerTime(userId) {
         if (this.players[userId]) {
             clearTimeout(this.players[userId].timer);
-            this.players[userId].time_left = gameSessions[userId].level * 2;
+            this.players[userId].time_left = gameSessions[userId].level * 5;
         }
     }
 
@@ -234,6 +234,23 @@ app.post("/api/telegram-auth", async (req, res) => {
 });
 
 app.post("/api/start-game", authenticateToken, (req, res) => {
+    const { eventId } = req.body;
+    const userId = req.user.userId;
+    logger.info(`[start-game] User ${userId} is starting a new game.`);
+
+    // ایجاد یک دنباله کاملاً جدید به طول ۱
+    const sequence = generateRandomSequence(1);
+
+    // تنظیم سطح بازی روی ۱
+    // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
+    gameSessions[userId] = { level: 1, sequence: sequence };
+    MainTimeManager.addPlayer(userId, eventId);
+    MainTimeManager.runTimer(userId);
+
+    res.json({ status: "success", sequence: sequence, time: 5 });
+});
+
+app.post("/api/runTimer", authenticateToken, (req, res) => {
     const { eventId } = req.body;
     const userId = req.user.userId;
     logger.info(`[start-game] User ${userId} is starting a new game.`);
