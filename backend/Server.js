@@ -72,6 +72,7 @@ class TimeManager {
     timeHandler(userId) {
         console.log(`Time for user ${userId} has expired. Saving score...`);
         endSessions[userId] = { level: gameSessions[userId].level };
+        this.deletePlayer(userId);
         handleGameOver(userId, this.players[userId].eventId);
     }
 
@@ -246,13 +247,14 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
     MainTimeManager.addPlayer(userId, eventId);
     MainTimeManager.runTimer(userId);
 
-    res.json({ status: "success", sequence: sequence });
+    res.json({ status: "success", sequence: sequence, time: 5 });
 });
 
 app.post("/api/validate-move", authenticateToken, (req, res) => {
     const userId = req.user.userId;
     const { playerSequence } = req.body;
     const userSession = gameSessions[userId];
+    MainTimeManager.stopTimer(userId);
 
     if (!userSession || !Array.isArray(playerSequence)) {
         logger.error(`[validate-move] Invalid request for user ${userId}.`);
@@ -266,9 +268,6 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         JSON.stringify(playerSequence) === JSON.stringify(correctSequence);
 
     if (isCorrect) {
-        // --- اگر درست بود: برو به مرحله بعد ---
-        MainTimeManager.stopTimer(userId);
-
         // ۱. سطح بازیکن را افزایش بده
         userSession.level += 1;
 
@@ -286,6 +285,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         res.json({
             status: "success",
             action: "next_level",
+            time: gameSessions[userId].level * 5,
             sequence: newSequence, // ارسال دنباله کاملاً جدید به فرانت‌اند
         });
     } else {
@@ -293,8 +293,6 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
         logger.info(
             `[validate-move] User ${userId} FAILED. Expected ${correctSequence}, got ${playerSequence}`
         );
-
-        MainTimeManager.stopTimer(userId);
         MainTimeManager.deletePlayer(userId);
 
         // امتیاز نهایی را محاسبه کن

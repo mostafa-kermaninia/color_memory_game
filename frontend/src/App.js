@@ -59,41 +59,59 @@ function App() {
         });
     };
 
-    // const timerId = useRef(null);
+    const timerId = useRef(null);
 
-    // const clearResources = useCallback(() => {
-    //     if (timerId.current) clearInterval(timerId.current);
+    const clearResources = useCallback(() => {
+        if (timerId.current) clearInterval(timerId.current);
 
-    //     timerId.current = null;
-    // }, []);
+        timerId.current = null;
+    }, []);
 
-    // const handleTimeout = useCallback(async () => {
-    //     try {
-    //         // try to display the leaderboard.
-    //         const response = await fetch(`${API_BASE}/timeOut`, {
-    //             method: "POST",
-    //             headers: {
-    //                 "Content-Type": "application/json",
-    //                 Authorization: `Bearer ${token}`, // Pass the auth token
-    //             },
-    //         });
+    const runTimer = useCallback(async (time) =>{
+        clearResources();
+        setTimeLeft(time);
 
-    //         if (!response.ok) {
-    //             // If the backend call fails, still end the game on the frontend
-    //             console.error("Timeout API call failed");
-    //             handleGameOver(level - 1); // Show leaderboard with the score we had
-    //             return;
-    //         }
+        timerId.current = setInterval(() => {
+            setTimeLeft((prev) => {
+                if (prev <= 1) {
+                    handleTimeout();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    },
+    [level, clearResources, handleTimeout]
+    );
 
-    //         const data = await response.json();
-    //         // Now, call handleGameOver with the CONFIRMED final score from the server
-    //         handleGameOver(data.score);
-    //         // ▲▲▲ END OF FIX ▲▲▲
-    //     } catch (error) {
-    //         console.error("Error during timeout handling:", error);
-    //         handleGameOver(level - 1); // Fallback to end the game
-    //     }
-    // }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
+
+    const handleTimeout = useCallback(async () => {
+        try {
+            // try to display the leaderboard.
+            const response = await fetch(`${API_BASE}/timeOut`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`, // Pass the auth token
+                },
+            });
+
+            if (!response.ok) {
+                // If the backend call fails, still end the game on the frontend
+                console.error("Timeout API call failed");
+                handleGameOver(level - 1); // Show leaderboard with the score we had
+                return;
+            }
+
+            const data = await response.json();
+            // Now, call handleGameOver with the CONFIRMED final score from the server
+            handleGameOver(data.score);
+            // ▲▲▲ END OF FIX ▲▲▲
+        } catch (error) {
+            console.error("Error during timeout handling:", error);
+            handleGameOver(level - 1); // Fallback to end the game
+        }
+    }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
 
     useEffect(() => {
         const sounds = soundsRef.current;
@@ -202,6 +220,7 @@ function App() {
                 return;
             }
 
+            clearResources();
             // وقتی کاربر تمام دنباله را وارد کرد، آن را برای اعتبارسنجی به سرور بفرست
             setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
 
@@ -218,6 +237,8 @@ function App() {
 
                 if (data.action === "next_level") {
                     // اگر سرور گفت "مرحله بعد"
+                    setTimeLeft(data.time);
+                    runTimer(data.time);
                     setSequence(data.sequence);
                     setLevel(data.sequence.length);
                     playSequence(data.sequence);
@@ -273,7 +294,7 @@ function App() {
                     throw new Error("Could not start the game.");
                 }
                 const data = await response.json();
-
+                runTimer(data.time);
                 // تنظیم بازی با دنباله‌ی دریافت شده از سرور
                 setSequence(data.sequence);
                 setLevel(1); // بازی از مرحله ۱ شروع می‌شود
@@ -362,23 +383,6 @@ function App() {
             authenticateUser();
         }
     }, [authenticateUser, token, userData]);
-
-    // useEffect(() => {
-    //     clearResources();
-    //     setTimeLeft(level * 5);
-
-    //     timerId.current = setInterval(() => {
-    //         setTimeLeft((prev) => {
-    //             if (prev <= 1) {
-    //                 handleTimeout();
-    //                 return 0;
-    //             }
-    //             return prev - 1;
-    //         });
-    //     }, 1000);
-    // },
-    // [level, clearResources, handleTimeout]
-    // );
 
     // frontend/src/App.js
 
