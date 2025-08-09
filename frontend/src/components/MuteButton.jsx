@@ -40,7 +40,3 @@ export default function MuteButton({ isMuted, onToggle }) {
         </motion.button>
     );
 }
-
-// برای کار کردن AnimatePresence، کامپوننت آیکون‌ها باید motion.div داشته باشند
-const MotionSoundOnIcon = motion(SoundOnIcon);
-const MotionSoundOffIcon = motion(SoundOffIcon);
