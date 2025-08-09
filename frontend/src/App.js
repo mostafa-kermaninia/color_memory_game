@@ -11,6 +11,7 @@ import GameLobby from "./components/GameLobby";
 import ColorPads from "./components/ColorPads"; // کامپوننت جدید بازی
 import DefaultAvatar from "./assets/default-avatar.png";
 import { motion, AnimatePresence } from "framer-motion";
+import MuteButton from "./components/MuteButton";
 
 const API_BASE = "https://memory.momis.studio/api"; // یا آدرس بک‌اند شما
 
@@ -28,7 +29,7 @@ function App() {
     );
     const [leaderboardKey, setLeaderboardKey] = useState(Date.now());
     const [currentGameEventId, setCurrentGameEventId] = useState(null);
-    
+
     const [sequence, setSequence] = useState([]);
     const [playerSequence, setPlayerSequence] = useState([]);
     const [level, setLevel] = useState(0);
@@ -45,6 +46,18 @@ function App() {
         game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
     });
     const currentMusicKey = useRef(null);
+
+    const [isMuted, setIsMuted] = useState(() => {
+        const savedMuteState = localStorage.getItem("isMuted");
+        return savedMuteState ? JSON.parse(savedMuteState) : false;
+    });
+    const toggleMute = () => {
+        setIsMuted((prevMuted) => {
+            const newMutedState = !prevMuted;
+            localStorage.setItem("isMuted", JSON.stringify(newMutedState));
+            return newMutedState;
+        });
+    };
 
     // const timerId = useRef(null);
 
@@ -82,34 +95,39 @@ function App() {
     //     }
     // }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
 
-
-    // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
     useEffect(() => {
         const sounds = soundsRef.current;
         const musicKey = view === "board" ? "lobby" : view;
         const musicToPlay = sounds[musicKey];
+
         // توقف موسیقی در حال پخش قبلی
         if (currentMusicKey.current && sounds[currentMusicKey.current]) {
             sounds[currentMusicKey.current].pause();
-            sounds[currentMusicKey.current].currentTime = 0; // بازگشت به ابتدای فایل
+            sounds[currentMusicKey.current].currentTime = 0;
+        }
+
+        // اگر بازی بی‌صدا بود یا موسیقی برای این صفحه وجود نداشت، هیچ کاری نکن
+        if (
+            isMuted ||
+            !musicToPlay ||
+            !["lobby", "game", "board"].includes(view)
+        ) {
+            currentMusicKey.current = null;
+            return;
         }
 
         // پخش موسیقی جدید
-        if (musicToPlay && ["lobby", "game", "board"].includes(view)) {
-            musicToPlay.loop = true; // تکرار خودکار موسیقی پس‌زمینه
-            musicToPlay.play().catch((error) => {
-                console.log("Audio autoplay was prevented by the browser.");
-            });
-            currentMusicKey.current = view; // ذخیره نام موسیقی در حال پخش
-        } else {
-            currentMusicKey.current = null;
-        }
+        musicToPlay.loop = true;
+        musicToPlay.play().catch((error) => {
+            console.log("Audio autoplay was prevented.");
+        });
+        currentMusicKey.current = view;
 
         // هنگام بسته شدن کامپوننت، تمام صداها را متوقف کن
         return () => {
             Object.values(sounds).forEach((sound) => sound.pause());
         };
-    }, [view]); // این افکت فقط زمانی اجرا می‌شود که view تغییر کند
+    }, [view, isMuted]); // isMuted را به وابستگی‌ها اضافه کنید
 
     const playSequence = useCallback(async (currentSequence) => {
         setIsPlayerTurn(false);
@@ -363,7 +381,6 @@ function App() {
     // [level, clearResources, handleTimeout]
     // );
 
-
     // frontend/src/App.js
 
     // frontend/src/App.js
@@ -516,6 +533,8 @@ function App() {
 
     return (
         <div className="relative min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4 font-[Vazirmatn]">
+            <MuteButton isMuted={isMuted} onToggle={toggleMute} />
+
             {error && (
                 <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-md shadow-lg z-50">
                     {error}
