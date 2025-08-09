@@ -158,8 +158,10 @@ app.post("/api/next-level", authenticateToken, (req, res) => {
     res.json({ status: "success", sequence: newSequence });
 });
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
-    const { score, eventId } = req.body;
+    const { score1, eventId } = req.body;
     const userId = req.user.userId;
+    const userSession = gameSessions[userId];
+    const score = userSession.level - 1;
 
     // --- حذف سشن بازی کاربر پس از پایان بازی ---
     if (gameSessions[userId]) {
