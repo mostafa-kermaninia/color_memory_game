@@ -250,7 +250,7 @@ app.post("/api/next-level", authenticateToken, (req, res) => {
     MainTimeManager.stopTimer(userId);
 
     if (!userSession) {
-        logger.warn(`[next-level] No active game session found for user ${userId}.`);
+        logger.error(`[next-level] No active game session found for user ${userId}.`);
         return res.status(404).json({ status: "error", message: "No active game found." });
     }
 
