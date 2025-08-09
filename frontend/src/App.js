@@ -200,6 +200,8 @@ function App() {
             await sleep(200);
         }
         setMessage("Your turn!");
+        setIsPlayerTurn(true);
+        setPlayerSequence([]);
         try {
             const response = await fetch(`${API_BASE}/runTimer`, {
                     method: "POST",
@@ -216,9 +218,6 @@ function App() {
             setError("Connection error. Game over.");
             handleGameOver(level); // در صورت خطا، بازی تمام می‌شود
         }
-        setIsPlayerTurn(true);
-        setPlayerSequence([]);
-        /////////////////////
     }, [API_BASE, token, currentGameEventId, runTimer, level, handleGameOver]);
 
     const handlePadClick = useCallback(
