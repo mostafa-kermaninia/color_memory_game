@@ -107,8 +107,8 @@ class TimeManager {
     timeHandler(userId) {
         console.log(`Time for user ${userId} has expired. Saving score...`);
         endSessions[userId] = { level: gameSessions[userId].level };
-        this.deletePlayer(userId);
         handleGameOver(userId, this.players[userId].eventId ? this.players[userId].eventId : null);
+        this.deletePlayer(userId);
     }
 
     runTimer(userId) {
