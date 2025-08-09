@@ -16,6 +16,7 @@ app.use(express.json());
 
 const gameSessions = {};
 const colors = ["green", "red", "yellow", "blue"];
+
 const generateRandomSequence = (length) => {
     return Array.from({ length }, () => colors[Math.floor(Math.random() * colors.length)]);
 };
@@ -58,6 +59,100 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
+
+class TimeManager {
+  constructor() {
+    this.players = {}; 
+  }
+
+  timeHandler(userId) {
+    console.log(`Time for user ${userId} has expired. Saving score...`);
+    handleGameOver(userId);
+  }
+
+  runTimer(userId) {
+    const player = this.players[userId];
+    if (!player) return;
+
+    player.should_stop = false;
+
+    const tick = () => {
+      if (!player || player.should_stop || !player.game_active) {
+        return;
+      }
+
+      player.time_left -= 1;
+
+      if (player.time_left < 0) {
+        // به جای logger.info، از console.log برای نمایش پیام استفاده می‌کنیم.
+        console.log(
+          `Player ${playerId} server-side timer expired. Triggering final save...`
+        );
+        this.timeHandler(userId);
+        return;
+      }
+
+      player.timer = setTimeout(tick, 1000);
+    };
+
+    player.timer = setTimeout(tick, 1000);
+  }
+
+  // می‌توانید متدهای دیگری مثل `addPlayer`، `startGame` و... را هم اضافه کنید.
+  addPlayer(userId) {
+    this.players[userId] = {
+      game_active: true,
+      time_left: gameSessions[userId].level * 2, // به عنوان مثال، 60 ثانیه زمان اولیه
+      should_stop: false,
+      timer: null
+    };
+  }
+
+  updatePlayerTime(userId) {
+    this.players[userId].time_left = gameSessions[userId].level * 2;
+  }
+
+  deletePlayer(userId){
+    if (this.players[userId])
+        delete this.players[userId];
+  }
+}
+
+const handleGameOver = async (userId) => {
+    if (!gameSessions[userId])
+        return ;
+    const userSession = gameSessions[userId];
+    const score = userSession.level - 1;
+
+    // --- حذف سشن بازی کاربر پس از پایان بازی ---
+    if (gameSessions[userId]) {
+        delete gameSessions[userId];
+        logger.info(`[gameOver] Cleared game session for user ${userId}.`);
+    }
+
+    logger.info(
+        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
+            eventId || "Free Play"
+        }`
+    );
+
+    // اعتبار سنجی امتیاز
+    if (typeof score !== "number" || score < 0) {
+        logger.warn(`Invalid score received for user ${userId}: ${score}`);
+        return res
+            .status(400)
+            .json({ status: "error", message: "Invalid score." });
+    }
+
+    await Score.create({
+        score: score,
+        userTelegramId: userId,
+        // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
+        eventId: eventId || null,
+    });
+}
+
 
 app.post("/api/telegram-auth", async (req, res) => {
     // --- لاگ تشخیصی برای دیدن مبدا درخواست ---
@@ -160,39 +255,9 @@ app.post("/api/next-level", authenticateToken, (req, res) => {
 app.post("/api/gameOver", authenticateToken, async (req, res) => {
     const { score1, eventId } = req.body;
     const userId = req.user.userId;
-    if (!gameSessions[userId])
-        return ;
-    const userSession = gameSessions[userId];
-    const score = userSession.level - 1;
-
-    // --- حذف سشن بازی کاربر پس از پایان بازی ---
-    if (gameSessions[userId]) {
-        delete gameSessions[userId];
-        logger.info(`[gameOver] Cleared game session for user ${userId}.`);
-    }
-
-    logger.info(
-        `[gameOver] Received score: ${score} for user: ${userId} in event: ${
-            eventId || "Free Play"
-        }`
-    );
-
-    // اعتبار سنجی امتیاز
-    if (typeof score !== "number" || score < 0) {
-        logger.warn(`Invalid score received for user ${userId}: ${score}`);
-        return res
-            .status(400)
-            .json({ status: "error", message: "Invalid score." });
-    }
-
 
     try {
-        await Score.create({
-            score: score,
-            userTelegramId: userId,
-            // اگر eventId وجود نداشته باشد، null ذخیره می‌شود (بازی آزاد)
-            eventId: eventId || null,
-        });
+
 
         logger.info(
             `Score ${score} saved for user ${userId} in event ${
