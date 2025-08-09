@@ -304,7 +304,10 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
 app.post("/api/timeOut", authenticateToken, async (req, res) => {
     try {
         const user = req.user; // اطلاعات کاربر از توکن
-        const result = endSessions[user.userId].level;
+        const result = {
+                    status: "game_over",
+                    score: endSessions[user.userId].level - 1,
+                };
         delete endSessions[user.userId];
 
         res.json(result);

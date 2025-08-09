@@ -68,19 +68,19 @@ function App() {
             if (!response.ok) {
                 // If the backend call fails, still end the game on the frontend
                 console.error("Timeout API call failed");
-                handleGameOver(score); // Show leaderboard with the score we had
+                handleGameOver(level - 1); // Show leaderboard with the score we had
                 return;
             }
 
             const data = await response.json();
             // Now, call handleGameOver with the CONFIRMED final score from the server
-            handleGameOver(data.final_score);
+            handleGameOver(data.score);
             // ▲▲▲ END OF FIX ▲▲▲
         } catch (error) {
             console.error("Error during timeout handling:", error);
-            handleGameOver(score); // Fallback to end the game
+            handleGameOver(level - 1); // Fallback to end the game
         }
-    }, [token, score, handleGameOver]); // Added `token` and `score` to dependency array
+    }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
 
 
     // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
