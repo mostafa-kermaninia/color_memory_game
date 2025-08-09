@@ -46,41 +46,41 @@ function App() {
     });
     const currentMusicKey = useRef(null);
 
-    const timerId = useRef(null);
+    // const timerId = useRef(null);
 
-    const clearResources = useCallback(() => {
-        if (timerId.current) clearInterval(timerId.current);
+    // const clearResources = useCallback(() => {
+    //     if (timerId.current) clearInterval(timerId.current);
 
-        timerId.current = null;
-    }, []);
+    //     timerId.current = null;
+    // }, []);
 
-    const handleTimeout = useCallback(async () => {
-        try {
-            // try to display the leaderboard.
-            const response = await fetch(`${API_BASE}/timeOut`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`, // Pass the auth token
-                },
-            });
+    // const handleTimeout = useCallback(async () => {
+    //     try {
+    //         // try to display the leaderboard.
+    //         const response = await fetch(`${API_BASE}/timeOut`, {
+    //             method: "POST",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //                 Authorization: `Bearer ${token}`, // Pass the auth token
+    //             },
+    //         });
 
-            if (!response.ok) {
-                // If the backend call fails, still end the game on the frontend
-                console.error("Timeout API call failed");
-                handleGameOver(level - 1); // Show leaderboard with the score we had
-                return;
-            }
+    //         if (!response.ok) {
+    //             // If the backend call fails, still end the game on the frontend
+    //             console.error("Timeout API call failed");
+    //             handleGameOver(level - 1); // Show leaderboard with the score we had
+    //             return;
+    //         }
 
-            const data = await response.json();
-            // Now, call handleGameOver with the CONFIRMED final score from the server
-            handleGameOver(data.score);
-            // ▲▲▲ END OF FIX ▲▲▲
-        } catch (error) {
-            console.error("Error during timeout handling:", error);
-            handleGameOver(level - 1); // Fallback to end the game
-        }
-    }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
+    //         const data = await response.json();
+    //         // Now, call handleGameOver with the CONFIRMED final score from the server
+    //         handleGameOver(data.score);
+    //         // ▲▲▲ END OF FIX ▲▲▲
+    //     } catch (error) {
+    //         console.error("Error during timeout handling:", error);
+    //         handleGameOver(level - 1); // Fallback to end the game
+    //     }
+    // }, [token, level, handleGameOver]); // Added `token` and `score` to dependency array
 
 
     // این افکت با تغییر view، موسیقی پس‌زمینه را مدیریت می‌کند
