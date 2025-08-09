@@ -142,6 +142,7 @@ function App() {
         timerId.current = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
+                    clearResources();
                     handleTimeout();
                     return 0;
                 }
