@@ -104,12 +104,11 @@ class TimeManager {
         this.players[userId].should_stop = true;
   }
 
-  // می‌توانید متدهای دیگری مثل `addPlayer`، `startGame` و... را هم اضافه کنید.
   addPlayer(userId, eventId) {
     this.players[userId] = {
       eventId: eventId,
       game_active: true,
-      time_left: gameSessions[userId].level * 2, // به عنوان مثال، 60 ثانیه زمان اولیه
+      time_left: gameSessions[userId].level * 5, // for test 5 sec per round
       should_stop: false,
       timer: null
     };
