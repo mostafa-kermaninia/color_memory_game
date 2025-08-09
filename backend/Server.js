@@ -376,8 +376,9 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
     try {
         const user = req.user; // اطلاعات کاربر از توکن
         const score = gameSessions[user.userId] ? gameSessions[user.userId].level - 1 :
+            endSessions[user.userId].level - 1;
+        
         MainTimeManager.deletePlayer(user.userId);
-            endSessions[user.userId].level - 1
         const result = {
             status: "game_over",
             score: score,
