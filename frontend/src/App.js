@@ -39,7 +39,6 @@ function App() {
     const [message, setMessage] = useState("حافظه رنگ‌ها");
     const [finalScore, setFinalScore] = useState(null);
     const [membershipRequired, setMembershipRequired] = useState(false);
-    const [stopTimer, setStopTimer] = useState(true);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const ROUND_TIME = 1;
 
@@ -140,12 +139,9 @@ function App() {
     const runTimer = useCallback(async (time) =>{
         clearResources();
         setTimeLeft(time);
-        setStopTimer(false);
 
         timerId.current = setInterval(() => {
             setTimeLeft((prev) => {
-                if (stopTimer)
-                    return prev;
                 if (prev <= 0.01) {
                     clearResources();
                     handleTimeout();
@@ -155,7 +151,7 @@ function App() {
             });
         }, 10);
     },
-    [setStopTimer, stopTimer, clearResources, handleTimeout]
+    [clearResources, handleTimeout]
     );
 
 
@@ -242,7 +238,7 @@ function App() {
             if (newPlayerSequence.length < sequence.length) {
                 return;
             }
-            setStopTimer(true);
+
             clearResources();
             // وقتی کاربر تمام دنباله را وارد کرد، آن را برای اعتبارسنجی به سرور بفرست
             setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
@@ -284,7 +280,6 @@ function App() {
             playSequence,
             handleGameOver,
             clearResources,
-            setStopTimer,
         ]
     );
 
