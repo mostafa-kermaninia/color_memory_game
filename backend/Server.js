@@ -90,6 +90,7 @@ const handleGameOver = async (userId, eventId) => {
             .json({ status: "error", message: "Invalid score." });
     }
 
+    console.log("event id is: " + eventId);
     await Score.create({
         score: score,
         userTelegramId: userId,
@@ -255,7 +256,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
 
     // تنظیم سطح بازی روی ۱
     // دنباله ساخته شده و سطح بازی را با هم در حافظه سرور ذخیره می‌کنیم
-    gameSessions[userId] = { level: 1, sequence: sequence };
+    gameSessions[userId] = { level: 1, sequence: sequence , eventId : eventId};
     MainTimeManager.addPlayer(userId, eventId);
 
     res.json({ status: "success", sequence: sequence, time: timePerRound });
