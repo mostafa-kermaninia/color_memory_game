@@ -14,7 +14,7 @@ const { User, Score, sequelize } = require("./DataBase/models");
 const app = express();
 app.use(express.json());
 
-const timePerRound = 5;
+const timePerRound = 1;
 const gameSessions = {};
 const endSessions = {};
 const colors = ["green", "red", "yellow", "blue"];

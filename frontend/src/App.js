@@ -40,7 +40,7 @@ function App() {
     const [finalScore, setFinalScore] = useState(null);
     const [membershipRequired, setMembershipRequired] = useState(false);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const ROUND_TIME = 5;
+    const ROUND_TIME = 1;
 
     const soundsRef = useRef({
         lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
