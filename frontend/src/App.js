@@ -293,6 +293,7 @@ function App() {
                 return;
             }
 
+            setTimeLeft(ROUND_TIME);
             setCurrentGameEventId(eventId);
             setFinalScore(null);
             setView("game");
