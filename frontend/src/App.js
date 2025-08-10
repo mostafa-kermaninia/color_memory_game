@@ -336,12 +336,15 @@ function App() {
 
         try {
             const initData = window.Telegram?.WebApp?.initData;
+            // if (!initData) {
+            //     console.warn("Running in non-Telegram environment.");
+            //     setIsAuthenticated(true);
+            //     setView("lobby");
+            //     setAuthLoading(false);
+            //     return;
+            // }
             if (!initData) {
-                console.warn("Running in non-Telegram environment.");
-                setIsAuthenticated(true);
-                setView("lobby");
-                setAuthLoading(false);
-                return;
+                throw new Error("Telegram authentication data not found");
             }
 
             const response = await fetch(`${API_BASE}/telegram-auth`, {
