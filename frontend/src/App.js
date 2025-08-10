@@ -20,6 +20,8 @@ function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
     const [error, setError] = useState(null);
+    localStorage.removeItem("jwtToken");
+    localStorage.removeItem("userData");
     const [userData, setUserData] = useState(() => {
         const saved = localStorage.getItem("userData");
         return saved ? JSON.parse(saved) : null;
