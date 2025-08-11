@@ -14,14 +14,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import MuteButton from "./components/MuteButton";
 
 const API_BASE = "https://memory.momis.studio/api"; // یا آدرس بک‌اند شما
+const tg = window.Telegram?.WebApp;
 
 function App() {
     const [view, setView] = useState("auth"); // auth, lobby, game, board
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
     const [error, setError] = useState(null);
-    localStorage.removeItem("jwtToken");
-    localStorage.removeItem("userData");
     const [userData, setUserData] = useState(() => {
         const saved = localStorage.getItem("userData");
         return saved ? JSON.parse(saved) : null;
@@ -397,15 +396,45 @@ function App() {
         }
     }, []);
 
+    // ✨ useEffect اصلی با منطق کاملاً بازنویسی شده و بهینه
     useEffect(() => {
-        if (token && userData) {
-            setIsAuthenticated(true);
-            setView("lobby");
-            setAuthLoading(false);
-        } else {
-            authenticateUser();
+        const initApp = async () => {
+            // // اولویت اول: آیا توکن و داده معتبر در حافظه وجود دارد؟
+            // const storedToken = localStorage.getItem("jwtToken");
+            // const storedUserData = localStorage.getItem("userData");
+
+            // if (storedToken && storedUserData) {
+            //     console.log("Authentication from localStorage.");
+            //     setToken(storedToken);
+            //     setUserData(JSON.parse(storedUserData));
+            //     setIsAuthenticated(true);
+            //     setView("lobby");
+            //     setAuthLoading(false);
+            //     return; // <-- پایان فرآیند
+            // }
+
+            // اولویت دوم: آیا در محیط تلگرام هستیم و داده برای احراز هویت داریم؟
+            if (tg && tg.initData) {
+                console.log("Authenticating with Telegram data...");
+                // تابع authenticateUser فقط همین یک بار فراخوانی می‌شود
+                await authenticateUser();
+                return; // <-- پایان فرآیند
+            }
+
+            // // حالت بازگشتی: برای محیط تست خارج از تلگرام
+            // console.warn("Running in non-Telegram development mode.");
+            // setIsAuthenticated(true);
+            // setView("lobby");
+            // setAuthLoading(false);
+        };
+
+        if (tg) {
+            tg.ready();
+            tg.expand();
         }
-    }, [authenticateUser, token, userData]);
+
+        initApp();
+    }, [authenticateUser]); // فقط به authenticateUser وابسته است
 
     // frontend/src/App.js
 
