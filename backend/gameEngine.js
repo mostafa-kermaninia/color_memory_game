@@ -26,14 +26,12 @@ const padLayout = {
 };
 
 // تولید یک دنباله تصادفی از کلیدهای رنگی (مثلاً ['red', 'blue', 'green', 'yellow'])
-function randomColorSequence() {
-  const colors = Object.keys(padColors);
-  for (let i = colors.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [colors[i], colors[j]] = [colors[j], colors[i]];
-  }
-  return colors;
-}
+const randomColorSequence = (length) => {
+    return Array.from(
+        { length },
+        () => colors[Math.floor(Math.random() * colors.length)]
+    );
+};
 
 // تابع جدید رسم فریم با استفاده از منطق WebM
 function drawFrame(ctx, { width, height, litPad, playerTurn = true }) {
