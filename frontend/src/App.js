@@ -523,7 +523,7 @@ function App() {
 
   const gameContent = useMemo(
     () =>
-      view === "game" && (
+      view === "game" && console.log(videoUrl) && (
         <div className="flex flex-col items-center gap-6 w-full max-w-md text-center">
           <h1 className="text-3xl font-bold h-10">{message}</h1>
           <p className="text-xl">Level: {level}</p>
