@@ -115,7 +115,7 @@ function App() {
   }, []);
 
   const fetchVideo = async (url) => {
-    const response = await fetch(`${API_BASE}/${url}`, {
+    const response = await fetch(`https://memory.momis.studio/${url}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const blob = await response.blob();
