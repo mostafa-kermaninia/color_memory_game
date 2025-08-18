@@ -44,6 +44,7 @@ function App() {
   const [membershipRequired, setMembershipRequired] = useState(false);
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const ROUND_TIME = 1;
+  const [videoBlob, setVideoBlob] = useState(null);
 
   const soundsRef = useRef({
     lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
@@ -111,6 +112,14 @@ function App() {
 
     timerId.current = null;
   }, []);
+
+  const fetchVideo = async (url) => {
+    const response = await fetch(`${API_BASE}/${url}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const blob = await response.blob();
+    setVideoBlob(URL.createObjectURL(blob));
+  };
 
   const handleTimeout = useCallback(async () => {
     try {
@@ -530,12 +539,12 @@ function App() {
           {/* ⭐️ اگر videoUrl وجود داشت، ویدیو را نمایش بده ⭐️ */}
           {videoUrl ? (
             <video
-              src={videoUrl}
+              src={videoBlob}
               autoPlay
               muted
               playsInline
               onEnded={handleVideoEnded}
-              key={videoUrl} // برای اطمینان از ریست شدن ویدیو با هر URL جدید
+              key={videoBlob} // برای اطمینان از ریست شدن ویدیو با هر URL جدید
               style={{
                 width: '300px',
                 height: '300px',
