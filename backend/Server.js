@@ -403,6 +403,7 @@ app.get("/api/avatar", async (req, res) => {
 
 // ⭐️ تغییر: endpoint تولید ویدیو برای دریافت sequence از query param ⭐️
 app.get("/sequence.webm", authenticateToken, async (req, res) => {
+  console.log("Video endpoint hit for user:", req.user.userId);
   const userId = req.user.userId;
   const userSession = gameSessions[userId];
 
