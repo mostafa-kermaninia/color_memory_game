@@ -138,7 +138,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
   MainTimeManager.addPlayer(userId, eventId);
 
   // ارسال آدرس ویدیوی WebM به فرانت‌اند
-  const videoUrl = `/sequence.webm?sequence=${JSON.stringify(userId)}`;
+  const videoUrl = `/sequence.webm?t=${Date.now()}`;
   res.json({ status: "success", videoUrl: videoUrl, time: timePerRound });
 });
 
@@ -183,7 +183,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
     );
 
     // ارسال آدرس ویدیوی WebM برای مرحله بعدی
-    const videoUrl = `/sequence.webm?sequence=${JSON.stringify(userId)}`;
+    const videoUrl = `/sequence.webm?t=${Date.now()}`;
     console.log(videoUrl);
     res.json({
       status: "success",
@@ -402,19 +402,15 @@ app.get("/api/avatar", async (req, res) => {
 });
 
 // ⭐️ تغییر: endpoint تولید ویدیو برای دریافت sequence از query param ⭐️
-app.get("/sequence.webm", async (req, res) => {
-  // دریافت دنباله رنگی از کوئری پارامتر (String)
-  const sequenceStr = req.query.sequence;
-  let sequence;
-  try {
-    sequence = JSON.parse(sequenceStr);
-    if (!Array.isArray(sequence)) {
-      throw new Error("Invalid sequence format");
-    }
-  } catch (e) {
-    return res.status(400).send("Invalid sequence provided.");
+app.get("/sequence.webm", authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  const userSession = gameSessions[userId];
+
+  if (!userSession || !userSession.sequence) {
+    return res.status(404).send("Sequence not found");
   }
 
+  const sequence = userSession.sequence;
   const durationMs = Math.max(50, parseInt(req.query.duration || "600", 10));
   const canvasSize = Math.max(200, parseInt(req.query.size || "300", 10));
   const playerTurn = req.query.playerTurn !== "false";
