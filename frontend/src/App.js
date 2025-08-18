@@ -99,6 +99,7 @@ function App() {
       // }
 
       setTimeout(() => {
+        setVideoBlob(null);
         setVideoUrl(null); // ⭐️ حذف ویدیو قبل از رفتن به صفحه برد ⭐️
         setView("board");
         setLeaderboardKey(Date.now());
@@ -267,6 +268,7 @@ function App() {
         const data = await response.json();
 
         if (data.action === "next_level") {
+          fetchVideo(data.videoUrl);
           // اگر سرور گفت "مرحله بعد"
           setTimeLeft(data.time);
           setLevel(data.level);
@@ -284,6 +286,7 @@ function App() {
       // --- پایان منطق جدید ---
     },
     [
+      fetchVideo,
       isPlayerTurn,
       playerSequence,
       level,
@@ -327,6 +330,7 @@ function App() {
         const data = await response.json();
 
         // ⭐️ دریافت URL ویدیو از سرور و تنظیم آن ⭐️
+        fetchVideo(data.videoUrl);
         setVideoUrl(data.videoUrl);
         setLevel(1);
         setPlayerSequence([]);
