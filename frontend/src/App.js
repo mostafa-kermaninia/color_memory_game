@@ -549,18 +549,13 @@ function App() {
           {/* ⭐️ اگر videoUrl وجود داشت، ویدیو را نمایش بده ⭐️ */}
           {videoUrl ? (
             <video
-              src={videoBlob}
-              autoPlay
-              muted
-              playsInline
-              onEnded={handleVideoEnded}
-              key={videoBlob} // برای اطمینان از ریست شدن ویدیو با هر URL جدید
-              style={{
-                width: '300px',
-                height: '300px',
-                borderRadius: '16px',
-                border: '2px solid #facc15'
-              }}
+                src={videoBlob}
+                autoPlay
+                muted
+                playsInline
+                onEnded={handleVideoEnded}
+                key={videoBlob}
+                className="w-full max-w-xs aspect-square mx-auto rounded-2xl"
             />
           ) : (
             // در غیر این صورت، پدهای رنگی را برای نوبت بازیکن نمایش بده
