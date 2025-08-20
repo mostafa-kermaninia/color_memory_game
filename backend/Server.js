@@ -401,98 +401,128 @@ app.get("/api/avatar", async (req, res) => {
   }
 });
 
-// ⭐️ تغییر: endpoint تولید ویدیو برای دریافت sequence از query param ⭐️
+// این قسمت از کد شماست که تغییر یافته است
 app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
-  console.log("Video endpoint hit for user:", req.user.userId);
-  const userId = req.user.userId;
-  const userSession = gameSessions[userId];
+    console.log("Video endpoint hit for user:", req.user.userId);
+    const userId = req.user.userId;
+    const userSession = gameSessions[userId];
 
-  if (!userSession || !userSession.sequence) {
-    return res.status(404).send("Sequence not found");
-  }
-
-  const sequence = userSession.sequence;
-  const durationMs = Math.max(50, parseInt(req.query.duration || "600", 10));
-  const canvasSize = Math.max(200, parseInt(req.query.size || "300", 10));
-  const playerTurn = req.query.playerTurn !== "false";
-
-  const width = canvasSize;
-  const height = canvasSize;
-
-  const fps = Math.max(1, Math.round(1000 / durationMs));
-  const codec = (req.query.codec || "vp9").toLowerCase();
-
-  const codecArgs =
-    codec === "vp8"
-      ? ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8"]
-      : [
-          "-c:v",
-          "libvpx-vp9",
-          "-row-mt",
-          "1",
-          "-speed",
-          "8",
-          "-tile-columns",
-          "2",
-        ];
-
-  const ff = spawn(ffmpegPath, [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-f",
-    "image2pipe",
-    "-framerate",
-    String(fps),
-    "-i",
-    "pipe:0",
-    ...codecArgs,
-    "-pix_fmt",
-    "yuv420p",
-    "-b:v",
-    "0",
-    "-crf",
-    "32",
-    "-an",
-    "-f",
-    "webm",
-    "pipe:1",
-  ]);
-
-  res.setHeader("Content-Type", "video/webm");
-  res.setHeader("Cache-Control", "no-store");
-
-  ff.stdout.pipe(res);
-
-  const abort = () => {
-    ff.kill("SIGKILL");
-  };
-  res.on("close", abort);
-  res.on("error", abort);
-
-  ff.on("error", (err) => {
-    console.error("ffmpeg error:", err);
-    if (!res.headersSent) res.status(500).end("ffmpeg error");
-  });
-
-  ff.on("close", (code) => {
-    if (code !== 0) console.error("ffmpeg exited with code", code);
-  });
-
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-
-  try {
-    for (const litPad of sequence) {
-      drawFrame(ctx, { width, height, litPad, playerTurn });
-      const png = canvas.toBuffer("image/png");
-      ff.stdin.write(png);
+    if (!userSession || !userSession.sequence) {
+        return res.status(404).send("Sequence not found");
     }
-    ff.stdin.end();
-  } catch (e) {
-    console.error("frame gen error:", e);
-    ff.stdin.destroy(e);
-  }
+
+    const sequence = userSession.sequence;
+    // اندازه Canvas را از کوئری پارامتر می‌گیریم یا مقدار پیش‌فرض ۳۰۰ را استفاده می‌کنیم
+    const canvasSize = Math.max(200, parseInt(req.query.size || "300", 10));
+    const playerTurn = req.query.playerTurn !== "false";
+
+    const width = canvasSize;
+    const height = canvasSize;
+
+    // --- تغییرات برای هماهنگی زمان‌بندی ---
+    const TARGET_FPS = 10; // FPS ثابت برای ویدیو (10 فریم بر ثانیه)
+    const FRAME_DURATION_MS = 1000 / TARGET_FPS; // مدت زمان هر فریم بر حسب میلی‌ثانیه
+
+    // تعداد فریم‌ها برای هر وضعیت بر اساس زمان‌بندی بازی
+    const initialDelayFrames = Math.round(1000 / FRAME_DURATION_MS); // 1 ثانیه تأخیر اولیه
+    const litDurationFrames = Math.round(400 / FRAME_DURATION_MS); // 400 میلی‌ثانیه روشن
+    const offDurationFrames = Math.round(200 / FRAME_DURATION_MS); // 200 میلی‌ثانیه خاموش بین پدها
+    // --- پایان تغییرات زمان‌بندی ---
+
+    const codec = (req.query.codec || "vp9").toLowerCase();
+
+    const codecArgs =
+        codec === "vp8"
+            ? ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8"]
+            : [
+                "-c:v",
+                "libvpx-vp9",
+                "-row-mt",
+                "1",
+                "-speed",
+                "8",
+                "-tile-columns",
+                "2",
+            ];
+
+    const ff = spawn(ffmpegPath, [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "image2pipe",
+        "-framerate",
+        String(TARGET_FPS), // استفاده از FPS ثابت
+        "-i",
+        "pipe:0",
+        ...codecArgs,
+        "-pix_fmt",
+        "yuv420p",
+        "-b:v",
+        "0",
+        "-crf",
+        "32",
+        "-an",
+        "-f",
+        "webm",
+        "pipe:1",
+    ]);
+
+    res.setHeader("Content-Type", "video/webm");
+    res.setHeader("Cache-Control", "no-store");
+
+    ff.stdout.pipe(res);
+
+    const abort = () => {
+        ff.kill("SIGKILL");
+    };
+    res.on("close", abort);
+    res.on("error", abort);
+
+    ff.on("error", (err) => {
+        console.error("ffmpeg error:", err);
+        if (!res.headersSent) res.status(500).end("ffmpeg error");
+    });
+
+    ff.on("close", (code) => {
+        if (code !== 0) console.error("ffmpeg exited with code", code);
+    });
+
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+
+    try {
+        // --- تولید فریم‌ها مطابق با زمان‌بندی بازی ---
+
+        // فریم‌های تأخیر اولیه (پدها خاموش)
+        for (let i = 0; i < initialDelayFrames; i++) {
+            drawFrame(ctx, { width, height, litPad: null, playerTurn });
+            const png = canvas.toBuffer("image/png");
+            ff.stdin.write(png);
+        }
+
+        // تولید فریم‌ها برای نمایش توالی
+        for (const litColor of sequence) {
+            // فریم‌های پد روشن
+            for (let i = 0; i < litDurationFrames; i++) {
+                drawFrame(ctx, { width, height, litPad: litColor, playerTurn });
+                const png = canvas.toBuffer("image/png");
+                ff.stdin.write(png);
+            }
+            // فریم‌های پد خاموش (بین دو پد)
+            for (let i = 0; i < offDurationFrames; i++) {
+                drawFrame(ctx, { width, height, litPad: null, playerTurn });
+                const png = canvas.toBuffer("image/png");
+                ff.stdin.write(png);
+            }
+        }
+        // --- پایان تولید فریم‌ها ---
+
+        ff.stdin.end(); // اتمام ارسال فریم‌ها به FFmpeg
+    } catch (e) {
+        console.error("frame gen error:", e);
+        ff.stdin.destroy(e);
+    }
 });
 
 app.use(express.static(path.join(__dirname, "../frontend/build")));
