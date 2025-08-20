@@ -205,6 +205,12 @@ function App() {
 
   // ⭐️ حذف playSequence و جایگزینی با یک تابع برای هندل کردن پایان پخش ویدیو ⭐️
   const handleVideoEnded = useCallback(async () => {
+    setVideoUrl(null); // ⭐️ این خط را اضافه کنید ⭐️
+    // URL موقت را هم آزاد کن
+    if (videoBlob) {
+      URL.revokeObjectURL(videoBlob);
+      setVideoBlob(null);
+    }
     setMessage("Your turn!");
     setIsPlayerTurn(true);
     setPlayerSequence([]);
@@ -268,12 +274,12 @@ function App() {
         const data = await response.json();
 
         if (data.action === "next_level") {
+          setVideoUrl(data.videoUrl);
           fetchVideo(data.videoUrl);
           // اگر سرور گفت "مرحله بعد"
           setTimeLeft(data.time);
           setLevel(data.level);
           // ⭐️ دریافت URL ویدیو از سرور و تنظیم آن ⭐️
-          setVideoUrl(data.videoUrl);
         } else if (data.action === "game_over") {
           // اگر سرور گفت "بازی تمام"
           handleGameOver(data.score);
