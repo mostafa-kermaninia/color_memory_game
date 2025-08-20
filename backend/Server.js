@@ -138,7 +138,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
   MainTimeManager.addPlayer(userId, eventId);
 
   // ارسال آدرس ویدیوی WebM به فرانت‌اند
-  const videoUrl = `/sequence.webm}`;
+  const videoUrl = `/sequence.webm`;
   res.json({ status: "success", videoUrl: videoUrl, time: timePerRound });
 });
 
