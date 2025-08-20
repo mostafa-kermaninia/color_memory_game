@@ -39,17 +39,23 @@ function App() {
   const [timeLeft, setTimeLeft] = useState(5);
   const [isPlayerTurn, setIsPlayerTurn] = useState(false);
   const [litPad, setLitPad] = useState(null);
-  const [message, setMessage] = useState("حافظه رنگ‌ها");
+  const [message, setMessage] = useState("Color Memory");
   const [finalScore, setFinalScore] = useState(null);
   const [membershipRequired, setMembershipRequired] = useState(false);
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const ROUND_TIME = 1;
   const [videoBlob, setVideoBlob] = useState(null);
 
-  const soundsRef = useRef({
-    lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
-    game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
-  });
+  const soundsRef = useRef(null);
+
+  const initializeSounds = useCallback(() => {
+    if (soundsRef.current) return; // اگر قبلاً ایجاد شده، هیچ کاری نکن
+
+    soundsRef.current = {
+        lobby: new Audio(`${process.env.PUBLIC_URL}/sounds/lobby.mp3`),
+        game: new Audio(`${process.env.PUBLIC_URL}/sounds/game.mp3`),
+    };
+  }, []);
   const currentMusicKey = useRef(null);
 
   const [isMuted, setIsMuted] = useState(() => {
@@ -170,6 +176,8 @@ function App() {
   );
 
   useEffect(() => {
+    initializeSounds();
+
     const sounds = soundsRef.current;
     const musicKey = view === "board" ? "lobby" : view;
     const musicToPlay = sounds[musicKey];
