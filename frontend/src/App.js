@@ -270,6 +270,9 @@ function App() {
       setIsPlayerTurn(false); // بلافاصله نوبت بازیکن را تمام کن
 
       try {
+        setVideoBlob(null);
+        setVideoUrl(null);
+
         const response = await fetch(`${API_BASE}/validate-move`, {
           method: "POST",
           headers: {
