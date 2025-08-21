@@ -35,43 +35,45 @@ const randomColorSequence = (length) => {
 
 // تابع جدید رسم فریم با استفاده از منطق WebM
 function drawFrame(ctx, { width, height, litPad, playerTurn }) {
-    const canvasSize = width;
-    const padding = canvasSize * 0.08;
+    const canvasSize = width; // فرض بر این است که عرض و ارتفاع Canvas یکسان است
+    const padding = canvasSize * 0.08; // حاشیه
     const baseSize = canvasSize - padding * 2;
-    const gap = baseSize * 0.05;
-    const padSize = (baseSize - gap) / 2;
+    const gap = baseSize * 0.05; // فاصله بین پدها
+    const padSize = (baseSize - gap) / 2; // اندازه هر پد
 
-    // ⭐️ کد رسم پس‌زمینه حذف شد.
-    // ctx.clearRect(0, 0, width, height) را هم اضافه نمی‌کنیم تا شفافیت حفظ شود.
-    // اگر از کد سمت بک‌اند استفاده می‌کنید، نیازی به این خط نیست چون هر فریم جدید، بوم شفاف است.
-
+    ctx.clearRect(0, 0, canvasSize, canvasSize); // پاک کردن Canvas
+    // اعمال فیلتر روشنایی بر اساس نوبت بازیکن (مشابه فرانت‌اند)
     ctx.filter = playerTurn ? "brightness(1)" : "brightness(0.6)";
 
-    // --- بقیه کد شما برای رسم پدها بدون تغییر ---
     for (const color in padLayout) {
         const layout = padLayout[color];
         const colors = padColors[color];
+        // تعیین رنگ پد (روشن یا عادی)
         ctx.fillStyle = litPad === color ? colors.lit : colors.normal;
 
         const x = padding + layout.x * (padSize + gap);
         const y = padding + layout.y * (padSize + gap);
 
+        // کشیدن مستطیل گرد برای پد
         ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
+        // شعاع گردی گوشه‌ها داینامیک است
+        if (typeof ctx.roundRect === 'function') { // بررسی پشتیبانی از roundRect
             ctx.roundRect(x, y, padSize, padSize, [padSize * 0.15]);
         } else {
+            // Fallback برای نسخه‌های قدیمی‌تر node-canvas که roundRect ندارند
             ctx.rect(x, y, padSize, padSize);
         }
         ctx.fill();
 
+        // اضافه کردن سایه درخشان در صورت روشن بودن پد
         if (litPad === color) {
             ctx.shadowColor = "rgba(255, 255, 255, 0.7)";
-            ctx.shadowBlur = padSize * 0.2;
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.shadowBlur = padSize * 0.2; // سایه هم داینامیک است
+            ctx.fill(); // دوباره پر کردن برای اعمال سایه
+            ctx.shadowBlur = 0; // ریست کردن سایه
         }
     }
-    ctx.filter = "none";
+    ctx.filter = "none"; // ریست کردن فیلتر پس از کشیدن همه پدها
 }
 // --- پایان منطق WebM ---
 
