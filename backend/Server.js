@@ -138,7 +138,7 @@ app.post("/api/start-game", authenticateToken, (req, res) => {
   MainTimeManager.addPlayer(userId, eventId);
 
   // ارسال آدرس ویدیوی WebM به فرانت‌اند
-  const videoUrl = `/sequence.webm`;
+  const videoUrl = `/sequence.webm?t=${new Date().getTime()}`;
   res.json({ status: "success", videoUrl: videoUrl, time: timePerRound });
 });
 
@@ -183,7 +183,7 @@ app.post("/api/validate-move", authenticateToken, (req, res) => {
     );
 
     // ارسال آدرس ویدیوی WebM برای مرحله بعدی
-    const videoUrl = `/sequence.webm`;
+    const videoUrl = `/sequence.webm?t=${new Date().getTime()}`;
     console.log(videoUrl);
     res.json({
       status: "success",
@@ -403,6 +403,9 @@ app.get("/api/avatar", async (req, res) => {
 
 // این قسمت از کد شماست که تغییر یافته است
 app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     console.log("Video endpoint hit for user:", req.user.userId);
     const userId = req.user.userId;
     const userSession = gameSessions[userId];
