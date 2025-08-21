@@ -41,21 +41,13 @@ function drawFrame(ctx, { width, height, litPad, playerTurn }) {
     const gap = baseSize * 0.05;
     const padSize = (baseSize - gap) / 2;
 
-    // --- افزودن پس‌زمینه گرادیان ---
-    // 1. گرادیان را ایجاد می‌کنیم.
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    // رنگ‌های گرادیان (gray-800 و gray-900) را تنظیم می‌کنیم.
-    gradient.addColorStop(0, '#1f2937'); // gray-800
-    gradient.addColorStop(1, '#111827'); // gray-900
+    // ⭐️ کد رسم پس‌زمینه حذف شد.
+    // ctx.clearRect(0, 0, width, height) را هم اضافه نمی‌کنیم تا شفافیت حفظ شود.
+    // اگر از کد سمت بک‌اند استفاده می‌کنید، نیازی به این خط نیست چون هر فریم جدید، بوم شفاف است.
 
-    // 2. کل بوم را با گرادیان پر می‌کنیم.
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // 3. حالا فیلتر را اعمال می‌کنیم و پدها را روی گرادیان می‌کشیم.
     ctx.filter = playerTurn ? "brightness(1)" : "brightness(0.6)";
 
-    // --- بقیه کد شما بدون تغییر ---
+    // --- بقیه کد شما برای رسم پدها بدون تغییر ---
     for (const color in padLayout) {
         const layout = padLayout[color];
         const colors = padColors[color];

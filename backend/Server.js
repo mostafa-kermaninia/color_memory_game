@@ -415,37 +415,37 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
     }
 
     const sequence = userSession.sequence;
-    // اندازه Canvas را از کوئری پارامتر می‌گیریم یا مقدار پیش‌فرض ۳۰۰ را استفاده می‌کنیم
     const canvasSize = Math.max(200, parseInt(req.query.size || "300", 10));
     const playerTurn = req.query.playerTurn !== "false";
 
     const width = canvasSize;
     const height = canvasSize;
 
-    // --- تغییرات برای هماهنگی زمان‌بندی ---
-    const TARGET_FPS = 10; // FPS ثابت برای ویدیو (10 فریم بر ثانیه)
-    const FRAME_DURATION_MS = 1000 / TARGET_FPS; // مدت زمان هر فریم بر حسب میلی‌ثانیه
+    const TARGET_FPS = 10;
+    const FRAME_DURATION_MS = 1000 / TARGET_FPS;
 
-    // تعداد فریم‌ها برای هر وضعیت بر اساس زمان‌بندی بازی
-    const initialDelayFrames = Math.round(1000 / FRAME_DURATION_MS); // 1 ثانیه تأخیر اولیه
-    const litDurationFrames = Math.round(400 / FRAME_DURATION_MS); // 400 میلی‌ثانیه روشن
-    const offDurationFrames = Math.round(200 / FRAME_DURATION_MS); // 200 میلی‌ثانیه خاموش بین پدها
-    // --- پایان تغییرات زمان‌بندی ---
+    const initialDelayFrames = Math.round(1000 / FRAME_DURATION_MS);
+    const litDurationFrames = Math.round(400 / FRAME_DURATION_MS);
+    const offDurationFrames = Math.round(200 / FRAME_DURATION_MS);
 
     const codec = (req.query.codec || "vp9").toLowerCase();
 
     const codecArgs =
         codec === "vp8"
-            ? ["-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8"]
+            ? [
+                  "-c:v", "libvpx",
+                  "-deadline", "realtime",
+                  "-cpu-used", "8",
+                  "-pix_fmt", "yuv420p"
+            ]
             : [
-                "-c:v",
-                "libvpx-vp9",
-                "-row-mt",
-                "1",
-                "-speed",
-                "8",
-                "-tile-columns",
-                "2",
+                  "-c:v", "libvpx-vp9",
+                  "-row-mt", "1",
+                  "-speed", "8",
+                  "-tile-columns", "2",
+                  "-pix_fmt", "yuva420p",
+                  "-auto-alt-ref", "1",
+                  "-lag-in-frames", "25"
             ];
 
     const ff = spawn(ffmpegPath, [
@@ -455,12 +455,10 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
         "-f",
         "image2pipe",
         "-framerate",
-        String(TARGET_FPS), // استفاده از FPS ثابت
+        String(TARGET_FPS),
         "-i",
         "pipe:0",
         ...codecArgs,
-        "-pix_fmt",
-        "yuv420p",
         "-b:v",
         "0",
         "-crf",
@@ -495,9 +493,7 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
     const ctx = canvas.getContext("2d");
 
     try {
-        // --- تولید فریم‌ها مطابق با زمان‌بندی بازی ---
-
-        // فریم‌های تأخیر اولیه (پدها خاموش)
+        // فریم‌های تأخیر اولیه
         for (let i = 0; i < initialDelayFrames; i++) {
             drawFrame(ctx, { width, height, litPad: null, playerTurn });
             const png = canvas.toBuffer("image/png");
@@ -519,9 +515,8 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
                 ff.stdin.write(png);
             }
         }
-        // --- پایان تولید فریم‌ها ---
-
-        ff.stdin.end(); // اتمام ارسال فریم‌ها به FFmpeg
+        
+        ff.stdin.end();
     } catch (e) {
         console.error("frame gen error:", e);
         ff.stdin.destroy(e);
