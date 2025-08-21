@@ -282,7 +282,7 @@ function App() {
 
         if (data.action === "next_level") {
           setTimeLeft(data.time);
-          setLevel(data.level);
+          setLevel(data.time);
           setVideoUrl(data.videoUrl);
           fetchVideo(data.videoUrl);
           setPlayerSequence([]);
