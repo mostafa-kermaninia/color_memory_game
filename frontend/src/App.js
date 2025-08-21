@@ -221,7 +221,6 @@ function App() {
     }
     setMessage("Your turn!");
     setIsPlayerTurn(true);
-    setPlayerSequence([]);
     try {
       const response = await fetch(`${API_BASE}/runTimer`, {
         method: "POST",
@@ -282,12 +281,11 @@ function App() {
         const data = await response.json();
 
         if (data.action === "next_level") {
-          setVideoUrl(data.videoUrl);
-          fetchVideo(data.videoUrl);
-          // اگر سرور گفت "مرحله بعد"
           setTimeLeft(data.time);
           setLevel(data.level);
-          // ⭐️ دریافت URL ویدیو از سرور و تنظیم آن ⭐️
+          setVideoUrl(data.videoUrl);
+          fetchVideo(data.videoUrl);
+          setPlayerSequence([]);
         } else if (data.action === "game_over") {
           // اگر سرور گفت "بازی تمام"
           handleGameOver(data.score);
