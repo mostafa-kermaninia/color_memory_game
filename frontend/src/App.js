@@ -289,6 +289,7 @@ function App() {
           setVideoUrl(data.videoUrl);
           fetchVideo(data.videoUrl);
           setPlayerSequence([]);
+          setMessage("Watch Closely...");
         } else if (data.action === "game_over") {
           // اگر سرور گفت "بازی تمام"
           handleGameOver(data.score);
