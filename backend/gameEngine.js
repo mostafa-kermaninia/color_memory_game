@@ -35,27 +35,19 @@ const randomColorSequence = (length) => {
 
 // تابع جدید رسم فریم با استفاده از منطق WebM
 function drawFrame(ctx, { width, height, litPad, playerTurn }) {
-    const canvasSize = width;
-    const padding = canvasSize * 0.08;
-    const baseSize = canvasSize - padding * 2;
-    const gap = baseSize * 0.05;
-    const padSize = (baseSize - gap) / 2;
-
-    // --- افزودن پس‌زمینه گرادیان ---
-    // 1. گرادیان را ایجاد می‌کنیم.
+    // 1. یک گرادیان ایجاد و آن را با رنگ‌های #1f2937 و #111827 تنظیم می‌کنیم
     const gradient = ctx.createLinearGradient(0, 0, width, height);
-    // رنگ‌های گرادیان (gray-800 و gray-900) را تنظیم می‌کنیم.
     gradient.addColorStop(0, '#1f2937'); // gray-800
     gradient.addColorStop(1, '#111827'); // gray-900
 
-    // 2. کل بوم را با گرادیان پر می‌کنیم.
+    // 2. کل بوم را با گرادیان پر می‌کنیم
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
-
-    // 3. حالا فیلتر را اعمال می‌کنیم و پدها را روی گرادیان می‌کشیم.
+    
+    // 3. حالا فیلتر روشنایی را اعمال می‌کنیم
     ctx.filter = playerTurn ? "brightness(1)" : "brightness(0.6)";
 
-    // --- بقیه کد شما بدون تغییر ---
+    // 4. سپس پدها را روی این پس‌زمینه می‌کشیم
     for (const color in padLayout) {
         const layout = padLayout[color];
         const colors = padColors[color];
@@ -79,6 +71,7 @@ function drawFrame(ctx, { width, height, litPad, playerTurn }) {
             ctx.shadowBlur = 0;
         }
     }
+    // 5. فیلتر را ریست می‌کنیم
     ctx.filter = "none";
 }
 // --- پایان منطق WebM ---
