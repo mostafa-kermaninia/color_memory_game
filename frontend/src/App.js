@@ -624,7 +624,7 @@ function App() {
   );
 
   return (
-    <div className="relative min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4 font-[Vazirmatn]">
+    <div className="relative min-h-dvh flex flex-col items-center justify-center bg-gray-850 text-white p-4 font-[Vazirmatn]">
       <MuteButton isMuted={isMuted} onToggle={toggleMute} />
 
       {error && (
