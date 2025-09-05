@@ -495,73 +495,48 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
     const litDurationFrames = Math.round(400 / FRAME_DURATION_MS);
     const offDurationFrames = Math.round(200 / FRAME_DURATION_MS);
 
-    // ✅ NEW: Detect if the request is from an iOS device
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    const codec = (req.query.codec || "vp9").toLowerCase();
 
-    let ff;
-    let contentType;
+    const codecArgs =
+        codec === "vp8"
+            ? [
+                  "-c:v", "libvpx",
+                  "-deadline", "realtime",
+                  "-cpu-used", "8",
+                  "-pix_fmt", "yuv420p"
+            ]
+            : [
+                  "-c:v", "libvpx-vp9",
+                  "-row-mt", "1",
+                  "-speed", "8",
+                  "-tile-columns", "2",
+                  "-pix_fmt", "yuv420p",  
+                  "-auto-alt-ref", "1",
+                  "-lag-in-frames", "25"
+            ];
 
-    // ✅ NEW: Conditional logic to handle different video formats
-    if (isIOS) {
-        // H.264 args for MP4 container, which is fully supported by iOS
-        const h264CodecArgs = [
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-profile:v", "main",
-            "-level", "4.0",
-        ];
-        
-        ff = spawn(ffmpegPath, [
-            "-hide_banner",
-            "-loglevel", "error",
-            "-f", "image2pipe",
-            "-framerate", String(TARGET_FPS),
-            "-i", "pipe:0",
-            ...h264CodecArgs,
-            "-an",
-            "-f", "mp4", // Output format as mp4
-            "pipe:1",
-        ]);
-        contentType = "video/mp4";
-    } else {
-        // Your original WebM/VP9 logic for all other devices
-        const codec = (req.query.codec || "vp9").toLowerCase();
-        const codecArgs =
-            codec === "vp8"
-                ? [
-                    "-c:v", "libvpx",
-                    "-deadline", "realtime",
-                    "-cpu-used", "8",
-                    "-pix_fmt", "yuv420p"
-                ]
-                : [
-                    "-c:v", "libvpx-vp9",
-                    "-row-mt", "1",
-                    "-speed", "8",
-                    "-tile-columns", "2",
-                    "-pix_fmt", "yuv420p", 
-                    "-auto-alt-ref", "1",
-                    "-lag-in-frames", "25"
-                ];
+    const ff = spawn(ffmpegPath, [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "image2pipe",
+        "-framerate",
+        String(TARGET_FPS),
+        "-i",
+        "pipe:0",
+        ...codecArgs,
+        "-b:v",
+        "0",
+        "-crf",
+        "32",
+        "-an",
+        "-f",
+        "webm",
+        "pipe:1",
+    ]);
 
-        ff = spawn(ffmpegPath, [
-            "-hide_banner",
-            "-loglevel", "error",
-            "-f", "image2pipe",
-            "-framerate", String(TARGET_FPS),
-            "-i", "pipe:0",
-            ...codecArgs,
-            "-b:v", "0",
-            "-crf", "32",
-            "-an",
-            "-f", "webm",
-            "pipe:1",
-        ]);
-        contentType = "video/webm";
-    }
-
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", "video/webm");
     res.setHeader("Cache-Control", "no-store");
 
     ff.stdout.pipe(res);
