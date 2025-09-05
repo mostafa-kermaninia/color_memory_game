@@ -510,7 +510,7 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
                   "-row-mt", "1",
                   "-speed", "8",
                   "-tile-columns", "2",
-                  "-pix_fmt", "yuva420p",  
+                  "-pix_fmt", "yuv420p",  
                   "-auto-alt-ref", "1",
                   "-lag-in-frames", "25"
             ];

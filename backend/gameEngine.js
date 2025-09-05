@@ -41,7 +41,10 @@ function drawFrame(ctx, { width, height, litPad, playerTurn }) {
     const gap = baseSize * 0.05; // فاصله بین پدها
     const padSize = (baseSize - gap) / 2; // اندازه هر پد
 
-    ctx.clearRect(0, 0, canvasSize, canvasSize); // پاک کردن Canvas
+    ctx.fillStyle = '#111827'; // This is a close match for 'gray-800' in Tailwind CSS
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    // ctx.clearRect(0, 0, canvasSize, canvasSize); // پاک کردن Canvas
     // اعمال فیلتر روشنایی بر اساس نوبت بازیکن (مشابه فرانت‌اند)
     ctx.filter = playerTurn ? "brightness(1)" : "brightness(0.6)";
 
