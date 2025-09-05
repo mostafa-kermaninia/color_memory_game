@@ -41,7 +41,7 @@ function drawFrame(ctx, { width, height, litPad, playerTurn }) {
     const gap = baseSize * 0.05; // فاصله بین پدها
     const padSize = (baseSize - gap) / 2; // اندازه هر پد
 
-    ctx.fillStyle = '#18212f'; 
+    ctx.fillStyle = '#1c2533'; 
     ctx.fillRect(0, 0, canvasSize, canvasSize);
 
     // ctx.clearRect(0, 0, canvasSize, canvasSize); // پاک کردن Canvas
