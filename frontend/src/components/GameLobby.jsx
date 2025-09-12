@@ -1,148 +1,309 @@
 import React, { useState, useEffect } from "react";
 import DefaultAvatar from "../assets/default-avatar.png";
-const api = {
-    get: (url) =>
-        fetch(url, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }).then((res) => res.json()),
-};
+import MyLeaderboardIcon_B from "../assets/LI-B.png";
+import MyLeaderboardIcon_G from "../assets/LI-G.png";
+import {
+    ClipboardIcon,
+    CubeTransparentIcon,
+    UserGroupIcon,
+    GiftIcon,
+    XMarkIcon,
+} from "@heroicons/react/24/outline";
+import TopInviterLeaderboard from "./TopInviterLeaderboard";
 
-const GameLobby = ({ onGameStart, userData, onLogout, onImageError }) => {
-    // State to store the list of active events fetched from the server
+const API_BASE = "/api";
+
+const GameLobby = ({
+    onGameStart,
+    userData,
+    onLogout,
+    onImageError,
+    onShowLeaderboard, // <-- این پراپ جدید است
+}) => {
     const [events, setEvents] = useState([]);
-    // State to track if the data is being loaded
     const [isLoading, setIsLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [invitedNum, setInvitedNum] = useState(0);
+    const [activeTab, setActiveTab] = useState("play");
 
-    // useEffect hook to fetch events when the component mounts
     useEffect(() => {
-        const fetchEvents = async () => {
+        const fetchEventsAndInvites = async () => {
             try {
                 setIsLoading(true);
-                // Fetch the list of active events from the new API endpoint
-                const response = await api.get("/api/events");
+                const response = await fetch("/api/events", {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("jwtToken")}`,
+                    },
+                }).then((res) => res.json());
+
                 if (response.status === "success") {
                     setEvents(response.events);
+                    setInvitedNum(response.invitedNum);
                 }
             } catch (error) {
-                console.error("Failed to fetch events:", error);
-                // Handle error, maybe show a message to the user
+                console.error("Failed to fetch data:", error);
             } finally {
                 setIsLoading(false);
             }
         };
+        fetchEventsAndInvites();
+    }, []);
 
-        fetchEvents();
-    }, []); // The empty dependency array ensures this runs only once
-
-    // This function will be called when the user clicks any start button
-    const handleStartGame = (eventId) => {
-        // Call the onGameStart function passed from the parent component (App.js)
-        // It will handle the actual API call to /api/start
-        onGameStart(eventId);
+    const handleCopyLink = async () => {
+        const inviteLink = `https://t.me/${
+            userData.bot_username || "color_memory_bot"
+        }?start=invite_${userData.id}`;
+        try {
+            await navigator.clipboard.writeText(inviteLink);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error("Failed to copy text: ", err);
+            // Fallback for older browsers
+            const textarea = document.createElement("textarea");
+            textarea.value = inviteLink;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
     };
 
     if (isLoading) {
         return (
             <div className="w-full max-w-md mx-auto text-center p-6">
-                <p className="text-white text-lg">Loading Events...</p>
+                <p className="text-white text-lg animate-pulse">Loading Game Modes...</p>
             </div>
         );
     }
 
     return (
-        <div className="w-full max-w-md mx-auto bg-gray-800 bg-opacity-70 rounded-xl shadow-lg p-6 text-white animate-fade-in">
-            {userData && (
-                <div className="flex items-center gap-3 bg-white/10 p-2 rounded-lg mb-6">
-                    <img
-                        src={
-                            userData.photo_url
-                                ? `/api/avatar?url=${encodeURIComponent(
-                                      userData.photo_url
-                                  )}`
-                                : DefaultAvatar
-                        }
-                        alt="Profile"
-                        className="w-12 h-12 rounded-full border-2 border-gray-500"
-                        onError={onImageError}
-                    />
-                    <div className="flex-grow">
-                        <h2 className="font-bold text-lg leading-tight">
-                            {userData.first_name} {userData.last_name}
-                        </h2>
-                        <p className="text-sm opacity-80">
-                            @{userData.username}
-                        </p>
+        <div className="w-full max-w-md mx-auto bg-transparent text-white relative min-h-screen flex flex-col">
+            {/* Main content that scrolls */}
+            <div className="flex-grow overflow-y-auto px-4 pt-6 pb-28">
+                {/* User Profile Section */}
+                {userData && (
+                    <div className="relative flex items-center gap-4 bg-black/20 p-2 rounded-xl mb-6 ring-1 ring-slate-700">
+                        <img
+                            src={
+                                userData.photo_url
+                                    ? `/api/avatar?url=${encodeURIComponent(
+                                          userData.photo_url
+                                      )}`
+                                    : DefaultAvatar
+                            }
+                            alt="Profile"
+                            className="w-14 h-14 rounded-full border-2 border-indigo-400"
+                            onError={onImageError}
+                        />
+                        <div className="flex flex-grow justify-between items-center">
+                            <div>
+                                <h2 className="font-bold text-xl leading-tight text-white">
+                                    {userData.first_name} {userData.last_name}
+                                </h2>
+                                <p className="text-sm opacity-70">@{userData.username}</p>
+                            </div>
+                            {onLogout && (
+                                <button
+                                    onClick={onLogout}
+                                    className="text-xs sm:text-sm bg-red-500/60 hover:bg-red-500/90 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors shadow-md"
+                                    title="Logout"
+                                >
+                                    Logout
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <button
-                        onClick={onLogout}
-                        className="ml-auto text-xs bg-red-500/50 px-3 py-1.5 rounded-md hover:bg-red-500/80 transition-colors"
-                        title="Logout"
-                    >
-                        Logout
-                    </button>
+                )}
+
+                {/* Tabbed Content */}
+                <div key={activeTab} className="animate-fade-in">
+                    {/* Play Tab Content */}
+                    {activeTab === "play" && (
+                        <>
+                            <h1 className="text-3xl font-bold mb-4 text-center text-white">
+                                Select Mode
+                            </h1>
+                            {/* Free Play Card */}
+                            <div className="bg-black/20 rounded-xl p-5 my-4 border border-slate-700 transition-all transform hover:scale-[1.02] hover:border-cyan-500 hover:shadow-lg hover:shadow-cyan-500/30">
+                                <h2 className="text-xl font-bold text-cyan-400">Free Play</h2>
+                                <p className="text-sm text-slate-300 mt-1 mb-4">
+                                    Practice and play just for fun.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        className="flex-grow bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg"
+                                        onClick={() => onGameStart(null)}
+                                    >
+                                        Play
+                                    </button>
+                                    <button
+                                        className="p-2 bg-slate-700/80 hover:bg-slate-600 rounded-lg transition-colors"
+                                        onClick={() => onShowLeaderboard(null)}
+                                        title="View Leaderboard"
+                                    >
+                                        <img
+                                            src={MyLeaderboardIcon_B}
+                                            alt="Leaderboard"
+                                            className="h-8 w-8"
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Event Cards */}
+                            {events.map((event) => (
+                                <div
+                                    key={event.id}
+                                    className="bg-black/20 rounded-xl p-5 my-4 border border-slate-700 transition-all transform hover:scale-[1.02] hover:border-green-500 hover:shadow-lg hover:shadow-green-500/30"
+                                >
+                                    <h2 className="text-xl font-bold text-green-400">
+                                        {event.name}
+                                    </h2>
+                                    <p className="text-sm text-slate-300 mt-1 mb-4">
+                                        {event.description}
+                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            className="flex-grow bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg"
+                                            onClick={() => onGameStart(event.id)}
+                                        >
+                                            Join Event
+                                        </button>
+                                        <button
+                                            className="p-2 bg-slate-700/80 hover:bg-slate-600 rounded-lg transition-colors"
+                                            onClick={() => onShowLeaderboard(event.id)}
+                                            title="View Leaderboard"
+                                        >
+                                            <img
+                                                src={MyLeaderboardIcon_G}
+                                                alt="Leaderboard"
+                                                className="h-8 w-8"
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {events.length === 0 && !isLoading && (
+                                <div className="bg-black/20 rounded-xl p-5 my-4 border border-slate-700 cursor-not-allowed opacity-60">
+                                    <h2 className="text-xl font-bold text-slate-500">
+                                        No Active Tournaments
+                                    </h2>
+                                    <p className="text-sm text-slate-400 mt-1">
+                                        Check back later for new events!
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Friends Tab Content */}
+                    {activeTab === "friends" && (
+                        <>
+                            <h1 className="text-3xl font-bold mb-4 text-center text-white">
+                                Invite Friends
+                            </h1>
+                            <div className="bg-gradient-to-br from-yellow-500/20 to-orange-600/20 rounded-xl p-5 my-3 text-center border border-yellow-500/50">
+                                <h2 className="text-lg font-bold text-white mb-2">
+                                    Total Invited Friends: {invitedNum}
+                                </h2>
+                                <p className="text-sm text-yellow-200/80 mb-4">
+                                    Invite friends and earn rewards!
+                                </p>
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg shadow-yellow-500/20"
+                                >
+                                    Get Invite Link
+                                </button>
+                            </div>
+                            <TopInviterLeaderboard API_BASE={API_BASE} />
+                        </>
+                    )}
                 </div>
-            )}
-
-            <h1 className="text-3xl font-bold mb-6 text-center text-yellow-400">
-                Game Mode
-            </h1>
-
-            <div className="bg-gray-700 bg-opacity-50 rounded-lg p-4 my-3 transition-transform transform hover:scale-105">
-                <h2 className="text-xl font-bold text-white">Free Play</h2>
-                <p className="text-sm text-gray-300 mt-1 mb-3">
-                    Practice and play just for fun.
-                </p>
-                <button
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                    onClick={() => handleStartGame(null)} // eventId is null for free play
-                >
-                    Start
-                </button>
             </div>
 
-            {events.length > 0 ? (
-                // If there ARE active events, show them
-                <>
-                    <div className="relative flex py-3 items-center">
-                        <div className="flex-grow border-t border-gray-600"></div>
-                        <span className="flex-shrink mx-4 text-gray-400">
-                            Events
-                        </span>
-                        <div className="flex-grow border-t border-gray-600"></div>
-                    </div>
+            {/* Fixed bottom navigation bar */}
+            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-black/30 backdrop-blur-lg border-t border-slate-700">
+                <div className="flex justify-around items-center px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                    <button
+                        onClick={() => setActiveTab("play")}
+                        className={`flex flex-col items-center gap-1 w-full transition-colors duration-200 ${
+                            activeTab === "play"
+                                ? "text-cyan-400"
+                                : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                        <CubeTransparentIcon className="h-7 w-7" />
+                        <span className="text-xs font-bold">Play</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("friends")}
+                        className={`flex flex-col items-center gap-1 w-full transition-colors duration-200 ${
+                            activeTab === "friends"
+                                ? "text-yellow-400"
+                                : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                        <UserGroupIcon className="h-7 w-7" />
+                        <span className="text-xs font-bold">Friends</span>
+                    </button>
+                </div>
+            </div>
 
-                    {events.map((event) => (
-                        <div
-                            key={event.id}
-                            className="bg-gray-700 bg-opacity-50 rounded-lg p-4 my-3 transition-transform transform hover:scale-105"
+            {/* Invite Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 animate-fade-in">
+                    <div className="relative w-full max-w-sm bg-slate-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-6 text-white border border-slate-700">
+                        <button
+                            onClick={() => setIsModalOpen(false)}
+                            className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
                         >
-                            <h2 className="text-xl font-bold text-yellow-400">
-                                {event.name}
+                            <XMarkIcon className="h-6 w-6" />
+                        </button>
+
+                        <div className="text-center">
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 mb-4 shadow-lg shadow-yellow-500/30">
+                                <GiftIcon className="h-9 w-9 text-white" />
+                            </div>
+
+                            <h2 className="text-2xl font-bold text-white mb-2">
+                                Invite & Earn Rewards
                             </h2>
-                            <p className="text-sm text-gray-300 mt-1 mb-3">
-                                {event.description}
+                            <p className="text-slate-300 mb-6">
+                                Share your personal link with friends. You'll both get rewards when they join!
                             </p>
+
+                            <div className="bg-slate-900/60 rounded-lg p-3 text-left mb-5">
+                                <label className="text-xs text-slate-400 font-bold">
+                                    YOUR INVITE LINK
+                                </label>
+                                <p className="text-sm text-yellow-300 break-words mt-1">
+                                    {`https://t.me/${
+                                        userData.bot_username || "color_memory_bot"
+                                    }?start=invite_${userData.id}`}
+                                </p>
+                            </div>
+
                             <button
-                                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                onClick={() => handleStartGame(event.id)}
+                                onClick={handleCopyLink}
+                                className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-bold transition-all duration-300 shadow-lg ${
+                                    copied
+                                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-green-500/30"
+                                        : "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-yellow-500/30"
+                                }`}
                             >
-                                Join Event
+                                <ClipboardIcon className="h-5 w-5" />
+                                <span>
+                                    {copied ? "Copied to Clipboard!" : "Copy Invite Link"}
+                                </span>
                             </button>
                         </div>
-                    ))}
-                </>
-            ) : (
-                // If there are NO active events, show a disabled-looking card
-                <div className="bg-gray-900 bg-opacity-70 rounded-lg p-4 my-3 cursor-not-allowed">
-                    <h2 className="text-xl font-bold text-gray-500">
-                        No Active Tournaments
-                    </h2>
-                    <p className="text-sm text-gray-400 mt-1">
-                        Check back later for new events! You can still play in
-                        Free Play mode.
-                    </p>
+                    </div>
                 </div>
             )}
         </div>

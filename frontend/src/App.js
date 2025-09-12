@@ -48,6 +48,13 @@ function App() {
 
   const soundsRef = useRef(null);
 
+  const handleShowLeaderboard = useCallback((eventId) => {
+        setFinalScore(null); // <-- ✅ این خط، امتیاز بازی قبلی را پاک می‌کند
+        setCurrentGameEventId(eventId); // ذخیره می‌کنیم کدام لیدربورد نمایش داده شود
+        setView("board");
+        setLeaderboardKey(Date.now()); // برای رفرش شدن کامپوننت
+    }, []);
+
   const initializeSounds = useCallback(() => {
     if (soundsRef.current) return; // اگر قبلاً ایجاد شده، هیچ کاری نکن
 
@@ -545,6 +552,7 @@ function App() {
           userData={userData}
           onLogout={handleLogout}
           onImageError={handleImageError}
+          onShowLeaderboard={handleShowLeaderboard}
         />
       ),
     [view, startGame, userData, handleLogout, handleImageError]
@@ -616,7 +624,7 @@ function App() {
   );
 
   return (
-    <div className="relative min-h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white p-4 font-[Vazirmatn]">
+    <div className="relative min-h-dvh flex flex-col items-center justify-center bg-gray-850 text-white p-4 font-[Vazirmatn]">
       <MuteButton isMuted={isMuted} onToggle={toggleMute} />
 
       {error && (

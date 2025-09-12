@@ -67,6 +67,37 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+async function getActiveReferredFriendsCount(currentUserId) {
+    try {
+        const invitedNum = await User.count({
+            where: {
+                referrerTelegramId: currentUserId, // کاربرانی که currentUserId آنها را دعوت کرده است
+            },
+            include: [
+                {
+                    model: Score,
+                    as: "scores", // از alias 'Scores' که در db.js تعریف شده، استفاده می‌کنیم
+                    attributes: [], // نیازی به واکشی فیلدهای Score نیست، فقط برای شرط join استفاده می‌شود
+                    required: true, // این شرط تضمین می‌کند که کاربر حداقل یک Score داشته باشد
+                },
+            ],
+            distinct: true, // تضمین می‌کند که هر کاربر فقط یک بار شمارش شود (در صورت وجود چندین Score)
+        });
+
+        console.log(
+            `User ${currentUserId} has invited ${invitedNum} active friends.`
+        );
+        return invitedNum;
+    } catch (error) {
+        console.error(
+            `Error fetching active referred friends count for user ${currentUserId}:`,
+            error
+        );
+        // در صورت بروز خطا، می‌توانید 0 یا مقدار دیگری را برگردانید
+        return 0;
+    }
+}
+
 app.post("/api/telegram-auth", async (req, res) => {
   logger.info(`Auth request received from origin: ${req.headers.origin}`);
   logger.info("Request body:", JSON.stringify(req.body, null, 2));
@@ -279,6 +310,35 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/api/referral-leaderboard", async (req, res) => {
+    logger.info("Fetching referral leaderboard...");
+    try {
+        const [results] = await sequelize.query(`
+            SELECT 
+                u.firstName as firstName,
+                u.username as username,
+                COUNT(DISTINCT u2.telegramId) as referral_count
+            FROM Users u2
+            INNER JOIN Users u ON u2.referrerTelegramId = u.telegramId
+            INNER JOIN Scores s ON u2.telegramId = s.userTelegramId
+            WHERE u2.referrerTelegramId IS NOT NULL
+            GROUP BY u2.referrerTelegramId, u.firstName, u.username
+            ORDER BY referral_count DESC
+            LIMIT 3
+        `);
+
+        res.status(200).json(results);
+    } catch (error) {
+        logger.error(`Referral leaderboard error: ${error.message}`, {
+            stack: error.stack,
+        });
+        res.status(500).json({
+            status: "error",
+            message: "Internal server error on referral leaderboard",
+        });
+    }
+});
+
 app.get("/api/leaderboard", authenticateToken, async (req, res) => {
   try {
     const currentUserTelegramId = req.user.userId;
@@ -371,7 +431,8 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
   }
 });
 
-app.get("/api/events", (req, res) => {
+app.get("/api/events", authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
   const activeEvents = [];
   if (process.env.ONTON_EVENT_UUID) {
     activeEvents.push({
@@ -380,7 +441,13 @@ app.get("/api/events", (req, res) => {
       description: "Compete for the grand prize in the main event!",
     });
   }
-  res.json({ status: "success", events: activeEvents });
+  const invitedNum = await getActiveReferredFriendsCount(userId);
+
+    res.json({
+        invitedNum: invitedNum,
+        status: "success",
+        events: activeEvents,
+    });
 });
 
 app.get("/api/avatar", async (req, res) => {
@@ -443,7 +510,7 @@ app.get("/sequence.webm", cors(), authenticateToken, async (req, res) => {
                   "-row-mt", "1",
                   "-speed", "8",
                   "-tile-columns", "2",
-                  "-pix_fmt", "yuva420p",
+                  "-pix_fmt", "yuv420p",  
                   "-auto-alt-ref", "1",
                   "-lag-in-frames", "25"
             ];
