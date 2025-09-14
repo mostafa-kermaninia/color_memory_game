@@ -11,6 +11,8 @@ const fetch = require("node-fetch");
 const logger = require("./logger");
 const validateTelegramData = require("./telegramAuth");
 const { User, Score, sequelize } = require("./DataBase/models");
+const { sequelize2, user_db_sequelize } = require('../database');
+const db = require("./DataBase/models");
 const { spawn } = require("node:child_process");
 const ffmpegPath = require("ffmpeg-static") || "ffmpeg";
 
@@ -69,23 +71,39 @@ const authenticateToken = (req, res, next) => {
 
 async function getActiveReferredFriendsCount(currentUserId) {
     try {
-        const invitedNum = await User.count({
-            where: {
-                referrerTelegramId: currentUserId, // کاربرانی که currentUserId آنها را دعوت کرده است
-            },
-            include: [
-                {
-                    model: Score,
-                    as: "scores", // از alias 'Scores' که در db.js تعریف شده، استفاده می‌کنیم
-                    attributes: [], // نیازی به واکشی فیلدهای Score نیست، فقط برای شرط join استفاده می‌شود
-                    required: true, // این شرط تضمین می‌کند که کاربر حداقل یک Score داشته باشد
-                },
-            ],
-            distinct: true, // تضمین می‌کند که هر کاربر فقط یک بار شمارش شود (در صورت وجود چندین Score)
+        const [results] = await user_db_sequelize.query(`
+            SELECT
+                COUNT(DISTINCT u.telegramId) AS invited_num
+            FROM
+                momis_users.Users AS u
+            WHERE
+                u.referrerTelegramId = :currentUserId
+                AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM colormemory_db.Scores AS cs
+                      WHERE cs.userTelegramId = u.telegramId
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM my_2048_db.Scores AS ms
+                      WHERE ms.userTelegramId = u.telegramId
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM momisdb.scores AS mo_s
+                      WHERE mo_s.userTelegramId = u.telegramId
+                  )
+                )
+        `, {
+            replacements: { currentUserId: currentUserId },
+            type: db.user_db_sequelize.QueryTypes.SELECT,
         });
 
+        const invitedNum = results.length > 0 ? results[0].invited_num : 0;
+
         console.log(
-            `User ${currentUserId} has invited ${invitedNum} active friends.`
+            `User ${currentUserId} has invited ${invitedNum} active friends across all games.`
         );
         return invitedNum;
     } catch (error) {
@@ -93,11 +111,9 @@ async function getActiveReferredFriendsCount(currentUserId) {
             `Error fetching active referred friends count for user ${currentUserId}:`,
             error
         );
-        // در صورت بروز خطا، می‌توانید 0 یا مقدار دیگری را برگردانید
         return 0;
     }
 }
-
 app.post("/api/telegram-auth", async (req, res) => {
   logger.info(`Auth request received from origin: ${req.headers.origin}`);
   logger.info("Request body:", JSON.stringify(req.body, null, 2));
@@ -121,7 +137,7 @@ app.post("/api/telegram-auth", async (req, res) => {
       });
     }
 
-    const [user, created] = await User.findOrCreate({
+    const [user, created] = await db.User_Momis.findOrCreate({
       where: { telegramId: userData.id },
       defaults: {
         firstName: userData.first_name,
@@ -313,18 +329,35 @@ app.post("/api/timeOut", authenticateToken, async (req, res) => {
 app.get("/api/referral-leaderboard", async (req, res) => {
     logger.info("Fetching referral leaderboard...");
     try {
-        const [results] = await sequelize.query(`
-            SELECT 
-                u.firstName as firstName,
-                u.username as username,
-                COUNT(DISTINCT u2.telegramId) as referral_count
-            FROM Users u2
-            INNER JOIN Users u ON u2.referrerTelegramId = u.telegramId
-            INNER JOIN Scores s ON u2.telegramId = s.userTelegramId
-            WHERE u2.referrerTelegramId IS NOT NULL
+        const [results] = await user_db_sequelize.query(`
+            SELECT
+                u.firstName AS firstName,
+                u.username AS username,
+                COUNT(DISTINCT u2.telegramId) AS referral_count
+            FROM momis_users.Users u2
+            INNER JOIN momis_users.Users u ON u2.referrerTelegramId = u.telegramId
+            WHERE
+                u2.referrerTelegramId IS NOT NULL
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM colormemory_db.Scores AS cs
+                        WHERE cs.userTelegramId = u2.telegramId
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM my_2048_db.Scores AS ms
+                        WHERE ms.userTelegramId = u2.telegramId
+                    )
+                    OR EXISTS (
+                        SELECT 1 
+                        FROM momisdb.scores AS mo_s
+                        WHERE mo_s.userTelegramId = u2.telegramId
+                    )
+                )
             GROUP BY u2.referrerTelegramId, u.firstName, u.username
             ORDER BY referral_count DESC
-            LIMIT 3
+            LIMIT 3;
         `);
 
         res.status(200).json(results);
@@ -392,7 +425,7 @@ app.get("/api/leaderboard", authenticateToken, async (req, res) => {
       ]),
     ];
 
-    const users = await User.findAll({
+    const users = await db.User_Momis.findAll({
       where: { telegramId: userIdsToFetch },
       raw: true,
     });
