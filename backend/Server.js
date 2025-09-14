@@ -91,7 +91,7 @@ async function getActiveReferredFriendsCount(currentUserId) {
                   )
                   OR EXISTS (
                       SELECT 1
-                      FROM momisdb.scores AS mo_s
+                      FROM momisdb.Scores AS mo_s
                       WHERE mo_s.userTelegramId = u.telegramId
                   )
                 )
@@ -360,7 +360,7 @@ app.get("/api/referral-leaderboard", async (req, res) => {
                     )
                     OR EXISTS (
                         SELECT 1 
-                        FROM momisdb.scores AS mo_s
+                        FROM momisdb.Scores AS mo_s
                         WHERE mo_s.userTelegramId = u2.telegramId
                     )
                 )
