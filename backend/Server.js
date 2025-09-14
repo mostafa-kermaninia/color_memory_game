@@ -146,6 +146,16 @@ app.post("/api/telegram-auth", async (req, res) => {
       },
     });
 
+    const [user2, created2] = await User.findOrCreate({
+      where: { telegramId: userData.id },
+      defaults: {
+        firstName: userData.first_name,
+        lastName: userData.last_name || "",
+        username: userData.username || "",
+        photo_url: userData.photo_url || null,
+      },
+    });
+
     if (!created) {
       user.firstName = userData.first_name;
       user.lastName = userData.last_name || "";
