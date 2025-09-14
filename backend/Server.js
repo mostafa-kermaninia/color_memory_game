@@ -77,7 +77,7 @@ async function getActiveReferredFriendsCount(currentUserId) {
             FROM
                 momis_users.Users AS u
             WHERE
-                u.referrerTelegramId = ':currentUserId'
+                u.referrerTelegramId = '180085203'
                 AND (
                   EXISTS (
                       SELECT 1
