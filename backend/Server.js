@@ -99,7 +99,7 @@ async function getActiveReferredFriendsCount(currentUserId) {
             replacements: { currentUserId: currentUserId },
             type: user_db_sequelize.QueryTypes.SELECT,
         });
-        print(results);
+        console.log(results);
         const invitedNum = results.length > 0 ? results[0].invited_num : 0;
 
         console.log(
