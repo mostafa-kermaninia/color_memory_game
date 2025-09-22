@@ -8,7 +8,7 @@ const { Score, User, sequelize } = require('./DataBase/models');
 const { rewardUser } = require('./ontonApi');
 const logger = require('./logger');
 
-const TOP_N_PLAYERS = 0;
+const TOP_N_PLAYERS = 1;
 
 // یک نمونه بات جدید و مستقل برای این فرآیند ایجاد می‌شود.
 const bot = new TelegramBot(process.env.MEM_BOT_TOKEN);
