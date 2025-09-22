@@ -1,13 +1,51 @@
 // backend/reward-top-players.js
 
 
+'use strict';
 require('dotenv').config();
+const TelegramBot = require('node-telegram-bot-api');
 const { Score, User, sequelize } = require('./DataBase/models');
 const { rewardUser } = require('./ontonApi');
 const logger = require('./logger');
-const { sendWinnerMessage, sendConsolationMessage } = require('./bot');
 
 const TOP_N_PLAYERS = 1;
+
+// یک نمونه بات جدید و مستقل برای این فرآیند ایجاد می‌شود.
+const bot = new TelegramBot(process.env.MEM_BOT_TOKEN);
+
+// توابع ارسال پیام به جای ایمپورت از یک فایل دیگر، در همین فایل تعریف می‌شوند
+// تا از نمونه بات محلی (bot) استفاده کنند.
+async function sendWinnerMessage(telegramId, userName, score, rewardLink) {
+    const message = `🏆 *Congratulations, ${userName}!* 🏆\n\nYou were a top player in the last tournament!\n\n*Your final score:* *${score}*\n\nYou have earned a special reward. Click the button below to claim your prize.`;
+    const options = {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [[{ text: "🎁 Claim Your Reward", url: rewardLink }]]
+        }
+    };
+    try {
+        await bot.sendMessage(telegramId, message, options);
+        logger.info(`Winner message sent to user ${telegramId}`);
+    } catch (error) {
+        logger.info(`Failed to send winner message to ${telegramId}. Reason: ${error.message}`);
+    }
+}
+
+async function sendConsolationMessage(telegramId, userName, topScore) {
+    const message = `👋 Hello, *${userName}*!\n\nThank you for participating in our latest tournament.\n\n*Your highest score:* *${topScore}*\n\nThe tournament has now ended. Keep practicing for the next event!`;
+    const options = {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [[{ text: "🚀 Practice in Free Mode!", web_app: { url: 'https://memory.momis.studio' } }]]
+        }
+    };
+    try {
+        await bot.sendMessage(telegramId, message, options);
+        logger.info(`Consolation message sent to user ${telegramId}`);
+    } catch (error) {
+        logger.info(`Failed to send consolation message to ${telegramId}. Reason: ${error.message}`);
+    }
+}
 
 async function findAndRewardTopPlayers(eventId) {
     if (!eventId) {

@@ -481,6 +481,7 @@ app.get("/api/events", authenticateToken, async (req, res) => {
       id: process.env.ONTON_EVENT_UUID,
       name: "Main Tournament",
       description: "Compete for the grand prize in the main event!",
+      endTime: process.env.END_TIME,
     });
   }
   const invitedNum = await getActiveReferredFriendsCount(userId);
