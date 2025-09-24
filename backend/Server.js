@@ -339,34 +339,40 @@ app.get("/api/referral-leaderboard", async (req, res) => {
     logger.info("Fetching referral leaderboard...");
     try {
         const [results] = await user_db_sequelize.query(`
-            SELECT
-                u.firstName AS firstName,
-                u.username AS username,
-                COUNT(DISTINCT u2.telegramId) AS referral_count
-            FROM momis_users.Users u2
-            INNER JOIN momis_users.Users u ON u2.referrerTelegramId = u.telegramId
-            WHERE
-                u2.referrerTelegramId IS NOT NULL
-                AND (
-                    EXISTS (
-                        SELECT 1
-                        FROM colormemory_db.Scores AS cs
-                        WHERE cs.userTelegramId = u2.telegramId
-                    )
-                    OR EXISTS (
-                        SELECT 1
-                        FROM my_2048_db.Scores AS ms
-                        WHERE ms.userTelegramId = u2.telegramId
-                    )
-                    OR EXISTS (
-                        SELECT 1 
-                        FROM momisdb.Scores AS mo_s
-                        WHERE mo_s.userTelegramId = u2.telegramId
-                    )
-                )
-            GROUP BY u2.referrerTelegramId, u.firstName, u.username
-            ORDER BY referral_count DESC
-            LIMIT 3;
+          SELECT
+              u.firstName AS firstName,
+              u.username AS username,
+              COUNT(DISTINCT u2.telegramId) AS referral_count,
+              MAX(u2.createdAt) AS last_referral_time
+          FROM
+              momis_users.Users u2
+          INNER JOIN
+              momis_users.Users u ON u2.referrerTelegramId = u.telegramId
+          WHERE
+              u2.referrerTelegramId IS NOT NULL
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM colormemory_db.Scores AS cs
+                      WHERE cs.userTelegramId = u2.telegramId
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM my_2048_db.Scores AS ms
+                      WHERE ms.userTelegramId = u2.telegramId
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM momisdb.Scores AS mo_s
+                      WHERE mo_s.userTelegramId = u2.telegramId
+                  )
+              )
+          GROUP BY
+              u2.referrerTelegramId, u.firstName, u.username
+          ORDER BY
+              referral_count DESC,
+              last_referral_time ASC
+          LIMIT 3;
         `);
 
         res.status(200).json(results);
@@ -382,95 +388,113 @@ app.get("/api/referral-leaderboard", async (req, res) => {
 });
 
 app.get("/api/leaderboard", authenticateToken, async (req, res) => {
-  try {
-    const currentUserTelegramId = req.user.userId;
-    const { eventId } = req.query;
+    try {
+        // شناسه‌ی کاربر فعلی از توکن گرفته می‌شود
+        const currentUserTelegramId = req.user.userId;
+        const { eventId } = req.query;
 
-    const whereCondition = {};
-    if (eventId && eventId !== "null" && eventId !== "undefined") {
-      whereCondition.eventId = eventId;
-    } else {
-      whereCondition.eventId = null;
+        // ساخت شرط فیلتر، دقیقا مانند کد اصلی شما
+        const whereCondition = {};
+        if (eventId && eventId !== "null" && eventId !== "undefined") {
+            whereCondition.eventId = eventId;
+        } else {
+            whereCondition.eventId = null;
+        }
+        logger.info(
+            `Fetching leaderboard for user ${currentUserTelegramId} with condition:`,
+            whereCondition
+        );
+
+        // مرحله ۱: بهترین امتیاز *تمام* کاربران را بر اساس شرط پیدا می‌کنیم (بدون limit)
+        const allScoresSorted = await Score.findAll({
+            where: whereCondition,
+            order: [
+                ["score", "DESC"],
+                ["createdAt", "ASC"], // این خط ترتیب را در امتیازهای مساوی تعیین می‌کند
+            ],
+            raw: true,
+        });
+        const uniquePlayerScores = [];
+        const seenUserIds = new Set();
+
+        for (const scoreRecord of allScoresSorted) {
+            if (!seenUserIds.has(scoreRecord.userTelegramId)) {
+                uniquePlayerScores.push({
+                    userTelegramId: scoreRecord.userTelegramId,
+                    score: scoreRecord.score,
+                });
+                seenUserIds.add(scoreRecord.userTelegramId);
+            }
+        }
+
+        let rank = 0;
+        let lastScore = Infinity;
+        const allRanks = uniquePlayerScores.map((entry, index) => {
+            if (entry.score < lastScore) {
+                rank = index + 1;
+                lastScore = entry.score;
+            }
+            return {
+                userTelegramId: entry.userTelegramId,
+                score: entry.score,
+                rank: rank,
+            };
+        });
+
+        // مرحله ۳: ۵ نفر برتر و کاربر فعلی را از لیست رتبه‌بندی شده جدا می‌کنیم
+        const top5Players = allRanks.slice(0, 5);
+        const currentUserData = allRanks.find(
+            (p) => p.userTelegramId == currentUserTelegramId
+        );
+
+        // مرحله ۴: اطلاعات کامل (نام، عکس و...) را برای کاربران مورد نیاز می‌گیریم
+        const userIdsToFetch = [
+            ...new Set([
+                // با Set از ارسال ID تکراری جلوگیری می‌کنیم
+                ...top5Players.map((p) => p.userTelegramId),
+                ...(currentUserData ? [currentUserData.userTelegramId] : []), // اگر کاربر فعلی رکوردی داشت، ID او را هم اضافه کن
+            ]),
+        ];
+
+        const users = await db.User_Momis.findAll({
+            where: { telegramId: userIdsToFetch },
+            raw: true,
+        });
+
+        const userMap = users.reduce((map, user) => {
+            map[user.telegramId] = user;
+            return map;
+        }, {});
+
+        // تابع کمکی برای ترکیب اطلاعات کاربر با رتبه و امتیاز
+        const formatPlayer = (playerData) => {
+            if (!playerData) return null;
+            const userProfile = userMap[playerData.userTelegramId];
+            return {
+                telegramId: userProfile?.telegramId,
+                username: userProfile?.username,
+                firstName: userProfile?.firstName,
+                photo_url: userProfile?.photo_url,
+                score: playerData.score,
+                rank: playerData.rank,
+            };
+        };
+
+        // مرحله ۵: ساخت آبجکت نهایی برای ارسال به فرانت‌اند
+        res.json({
+            status: "success",
+            leaderboard: {
+                top: top5Players.map(formatPlayer), // لیست ۵ نفر برتر
+                currentUser: formatPlayer(currentUserData), // اطلاعات کاربر فعلی
+            },
+        });
+    } catch (e) {
+        logger.error(`Leaderboard error: ${e.message}`, { stack: e.stack });
+        res.status(500).json({
+            status: "error",
+            message: "Internal server error",
+        });
     }
-    logger.info(
-      `Fetching leaderboard for user ${currentUserTelegramId} with condition:`,
-      whereCondition
-    );
-
-    const allScores = await Score.findAll({
-      where: whereCondition,
-      attributes: [
-        "userTelegramId",
-        [sequelize.fn("MAX", sequelize.col("score")), "max_score"],
-      ],
-      group: ["userTelegramId"],
-      order: [[sequelize.col("max_score"), "DESC"]],
-      raw: true,
-    });
-
-    let rank = 0;
-    let lastScore = Infinity;
-    const allRanks = allScores.map((entry, index) => {
-      if (entry.max_score < lastScore) {
-        rank = index + 1;
-        lastScore = entry.max_score;
-      }
-      return {
-        userTelegramId: entry.userTelegramId,
-        score: entry.max_score,
-        rank: rank,
-      };
-    });
-
-    const top5Players = allRanks.slice(0, 5);
-    const currentUserData = allRanks.find(
-      (p) => p.userTelegramId == currentUserTelegramId
-    );
-
-    const userIdsToFetch = [
-      ...new Set([
-        ...top5Players.map((p) => p.userTelegramId),
-        ...(currentUserData ? [currentUserData.userTelegramId] : []),
-      ]),
-    ];
-
-    const users = await db.User_Momis.findAll({
-      where: { telegramId: userIdsToFetch },
-      raw: true,
-    });
-
-    const userMap = users.reduce((map, user) => {
-      map[user.telegramId] = user;
-      return map;
-    }, {});
-
-    const formatPlayer = (playerData) => {
-      if (!playerData) return null;
-      const userProfile = userMap[playerData.userTelegramId];
-      return {
-        telegramId: userProfile?.telegramId,
-        username: userProfile?.username,
-        firstName: userProfile?.firstName,
-        photo_url: userProfile?.photo_url,
-        score: playerData.score,
-        rank: playerData.rank,
-      };
-    };
-
-    res.json({
-      status: "success",
-      leaderboard: {
-        top: top5Players.map(formatPlayer),
-        currentUser: formatPlayer(currentUserData),
-      },
-    });
-  } catch (e) {
-    logger.error(`Leaderboard error: ${e.message}`, { stack: e.stack });
-    res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-    });
-  }
 });
 
 app.get("/api/events", authenticateToken, async (req, res) => {
