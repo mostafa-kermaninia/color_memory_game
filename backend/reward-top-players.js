@@ -57,35 +57,63 @@ async function findAndRewardTopPlayers(eventId) {
 
     try {
         // Step 1: Get ALL unique participants and their highest score for this event
-        const allParticipants = await Score.findAll({
+        const allScoresSorted = await Score.findAll({
             where: { eventId: eventId },
-            attributes: [
-                'userTelegramId',
-                [sequelize.fn('MAX', sequelize.col('score')), 'max_score']
+            order: [
+                ['score', 'DESC'],
+                ['createdAt', 'ASC'] // This is the tie-breaker!
             ],
-            group: ['userTelegramId'],
             raw: true,
         });
 
-        if (allParticipants.length === 0) {
+        if (allScoresSorted.length === 0) {
+            logger.info(`No scores found for event ${eventId}. Ending process.`);
+            return;
+        }
+
+         // حالا که رکوردها مرتب هستند، برنده اولین رکورد در لیست است که کاربر تکراری نداشته باشد.
+        const winners = [];
+        const uniqueParticipants = [];
+        const seenUserIds = new Set();
+
+        for (const scoreRecord of allScoresSorted) {
+            const currentUserId = scoreRecord.userTelegramId;
+            
+            // اولین باری که هر کاربر را می‌بینیم، بالاترین امتیازش است (چون لیست مرتب است)
+            if (!seenUserIds.has(currentUserId)) {
+                uniqueParticipants.push({
+                    userTelegramId: currentUserId,
+                    max_score: scoreRecord.score // This is their highest score
+                });
+
+                // اگر هنوز به تعداد برنده مورد نظر نرسیده‌ایم، این کاربر را به عنوان برنده اضافه می‌کنیم
+                if (winners.length < TOP_N_PLAYERS) {
+                    winners.push({
+                        userTelegramId: currentUserId,
+                        max_score: scoreRecord.score
+                    });
+                }
+                
+                seenUserIds.add(currentUserId);
+            }
+        }
+        
+        const winnerIds = new Set(winners.map(w => w.userTelegramId));
+
+        if (uniqueParticipants.length === 0) {
             logger.info(`No participants found for event ${eventId}. Ending process.`);
             return;
         }
 
         // Fetch user details for all participants to get their names
-        const allUserIds = allParticipants.map(p => p.userTelegramId);
+        const allUserIds = uniqueParticipants.map(p => p.userTelegramId);
         const allUsers = await User.findAll({ where: { telegramId: allUserIds }, raw: true });
         const userMap = allUsers.reduce((map, user) => {
             map[user.telegramId] = user;
             return map;
         }, {});
 
-        // Step 2: Sort participants by score and identify winners
-        allParticipants.sort((a, b) => b.max_score - a.max_score);
-        const winners = allParticipants.slice(0, TOP_N_PLAYERS);
-        const winnerIds = new Set(winners.map(w => w.userTelegramId));
-
-        logger.info(`Found ${allParticipants.length} total participants. Winners: ${winners.length}.`);
+        logger.info(`Found ${uniqueParticipants.length} total participants. Winners: ${winners.length}.`);
 
         // Step 3: Process rewards for winners
         for (const winner of winners) {
@@ -110,7 +138,7 @@ async function findAndRewardTopPlayers(eventId) {
         }
         
         // Step 4: Send consolation messages to everyone else
-        for (const participant of allParticipants) {
+        for (const participant of uniqueParticipants) {
             const userId = participant.userTelegramId;
             // Check if this user is NOT in the winners set
             if (!winnerIds.has(userId)) {
