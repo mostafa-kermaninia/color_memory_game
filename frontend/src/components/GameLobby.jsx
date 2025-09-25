@@ -111,7 +111,7 @@ const GameLobby = ({
 
     const handleCopyLink = async () => {
         const inviteLink = `https://t.me/${
-            userData.bot_username || "Momis_mathbattle_bot"
+            userData.bot_username || "color_memory_bot"
         }?start=invite_${userData.id}`;
         try {
             await navigator.clipboard.writeText(inviteLink);
@@ -349,7 +349,7 @@ const GameLobby = ({
                                 </label>
                                 <p className="text-sm text-yellow-300 break-words mt-1">
                                     {`https://t.me/${
-                                        userData.bot_username || "Momis_mathbattle_bot"
+                                        userData.bot_username || "color_memory_bot"
                                     }?start=invite_${userData.id}`}
                                 </p>
                             </div>
