@@ -279,6 +279,16 @@ app.post("/api/gameOver", authenticateToken, async (req, res) => {
         .json({ status: "error", message: "Invalid score." });
     }
 
+    if (eventId && (!process.env.ONTON_EVENT_UUID || process.env.ONTON_EVENT_UUID !== eventId))
+    {
+      logger.info(`[TOURNAMENT ENDED]: skip saving score for: ${userId}`);
+      return res.status(400).json({
+          status: "tournament_ended",
+          message:
+              "Tournament is ended. Your new score is ignored",
+      });
+    }    
+
     await Score.create({
       score: score,
       userTelegramId: userId,
