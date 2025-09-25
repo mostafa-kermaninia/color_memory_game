@@ -63,7 +63,7 @@ const GameLobby = ({
         const intervals = events.map(event => {
             const updateCountdown = () => {
                 const now = new Date();
-                const endTimeUTC = new Date(event.endTime);
+                const endTimeUTC = new Date(event.id === "upcoming" ? event.startTime : event.endTime);
                 const difference = endTimeUTC.getTime() - now.getTime();
 
                 if (difference > 0) {
@@ -209,6 +209,33 @@ const GameLobby = ({
                             </div>
                             {events.map((event) => {
                                 const time = remainingTimes[event.id];
+
+                                // Conditional rendering for the "upcoming" event
+                                if (event.id === 'upcoming') {
+                                    return (
+                                        <div
+                                            key={event.id}
+                                            className="bg-black/20 rounded-xl p-5 my-4 border border-slate-700 transition-all transform hover:scale-[1.02] hover:border-green-500 hover:shadow-lg hover:shadow-green-500/30 relative"
+                                        >
+                                            <h2 className="text-xl font-bold text-green-400">
+                                                Next tournament starts in
+                                            </h2>
+                                            {time && (
+                                                <div className="text-center text-green-400 font-extrabold text-3xl font-mono mt-2">
+                                                    {time.isEnded ? (
+                                                        <span className="whitespace-nowrap">Tournament started! 🏁</span>
+                                                    ) : (
+                                                        <span className="whitespace-nowrap">
+                                                            {time.days > 0 && `${time.days}d `}
+                                                            {time.hours}h {time.minutes}m {time.seconds}s
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                // Original card for other events
                                 return (
                                     <div
                                         key={event.id}
